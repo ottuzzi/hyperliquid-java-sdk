@@ -6,7 +6,7 @@
 
     <groupId>io.github.heiye115</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.2</version>
     <name>Hyperliquid Java SDK</name>
     <description>Pure Java SDK for Hyperliquid: Info queries, WebSocket subscriptions, order placement and signing.</description>
     <url>https://github.com/heiye115/hyperliquid-java-sdk</url>
@@ -219,7 +219,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.6.2</version>
+                <version>3.12.0</version>
                 <configuration>
                     <source>${maven.compiler.source}</source>
                     <doclint>none</doclint>

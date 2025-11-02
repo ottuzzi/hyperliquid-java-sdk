@@ -22,7 +22,7 @@
   mvn -q -DskipTests=false clean test
   mvn -q package
   ```
-- 构建产物位于 `target/hyperliquid-java-sdk-0.1.0.jar`。
+- 构建产物位于 `target/hyperliquid-java-sdk-0.1.2.jar`。
 
 方式二：作为 Maven 依赖（本地安装）
 - 安装到本地仓库：
@@ -34,7 +34,7 @@
   <dependency>
     <groupId>com.hyperliquid</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.2</version>
   </dependency>
   ```
 

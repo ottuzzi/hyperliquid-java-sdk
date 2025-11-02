@@ -22,7 +22,7 @@ Option A: Build from source
   mvn -q -DskipTests=false clean test
   mvn -q package
   ```
-- The JAR will be available under `target/hyperliquid-java-sdk-0.1.0.jar`.
+- The JAR will be available under `target/hyperliquid-java-sdk-0.1.2.jar`.
 
 Option B: Use as a Maven dependency (local install)
 - Install into your local repository:
@@ -34,7 +34,7 @@ Option B: Use as a Maven dependency (local install)
   <dependency>
     <groupId>com.hyperliquid</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
-    <version>0.1.1</version>
+    <version>0.1.2</version>
   </dependency>
   ```
 
