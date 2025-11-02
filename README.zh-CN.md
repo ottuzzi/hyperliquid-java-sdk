@@ -36,7 +36,7 @@ Hyperliquid 去中心化交易所的软件开发工具包 (SDK)。
   <dependency>
     <groupId>io.github.heiye115</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
-    <version>0.1.2</version>
+    <version>0.1.3</version>
   </dependency>
   ```
 
