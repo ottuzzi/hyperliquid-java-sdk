@@ -27,7 +27,7 @@ Option A: Build from source
 Option B: Use as a Maven dependency (local install)
 - Install into your local repository:
   ```
-  mvn -q -DskipTests=false clean install
+  mvn  clean install -DskipTests=true
   ```
 - Add dependency in your project’s `pom.xml`:
   ```xml

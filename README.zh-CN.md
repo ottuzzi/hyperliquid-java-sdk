@@ -27,7 +27,7 @@
 方式二：作为 Maven 依赖（本地安装）
 - 安装到本地仓库：
   ```
-  mvn -q -DskipTests=false clean install
+  mvn  clean install -DskipTests=true
   ```
 - 在你的项目 `pom.xml` 中添加依赖：
   ```xml
