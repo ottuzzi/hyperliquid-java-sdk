@@ -271,7 +271,17 @@ public class Info extends API {
      * @return JSON 结果
      */
     public JsonNode l2Snapshot(int coin) {
-        Map<String, Object> payload = Map.of("type", "l2Snapshot", "coin", this.coinIdToInfoCoinString(coin));
+        return this.l2Snapshot(this.coinIdToInfoCoinString(coin));
+    }
+
+    /**
+     * L2 订单簿快照。
+     *
+     * @param coin 币种
+     * @return JSON 结果
+     */
+    public JsonNode l2Snapshot(String coin) {
+        Map<String, Object> payload = Map.of("type", "l2Snapshot", "coin", coin);
         return post("/info", payload);
     }
 
@@ -605,9 +615,16 @@ public class Info extends API {
      * 查询资金费率历史（指定币种与时间范围）。
      */
     public JsonNode fundingHistory(int coin, long startMs, long endMs) {
+        return this.fundingHistory(this.coinIdToInfoCoinString(coin), startMs, endMs);
+    }
+
+    /**
+     * 查询资金费率历史（指定币种与时间范围）。
+     */
+    public JsonNode fundingHistory(String coin, long startMs, long endMs) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "fundingHistory");
-        payload.put("coin", this.coinIdToInfoCoinString(coin));
+        payload.put("coin", coin);
         payload.put("startTime", startMs);
         payload.put("endTime", endMs);
         return post("/info", payload);
@@ -617,10 +634,17 @@ public class Info extends API {
      * 查询用户资金费率历史（按用户与币种）。
      */
     public JsonNode userFundingHistory(String address, int coin, long startMs, long endMs) {
+        return this.userFundingHistory(address, this.coinIdToInfoCoinString(coin), startMs, endMs);
+    }
+
+    /**
+     * 查询用户资金费率历史（按用户与币种）。
+     */
+    public JsonNode userFundingHistory(String address, String coin, long startMs, long endMs) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "userFundingHistory");
         payload.put("user", address);
-        payload.put("coin", this.coinIdToInfoCoinString(coin));
+        payload.put("coin", coin);
         payload.put("startTime", startMs);
         payload.put("endTime", endMs);
         return post("/info", payload);
