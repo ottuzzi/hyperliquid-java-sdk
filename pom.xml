@@ -6,7 +6,7 @@
 
     <groupId>io.github.heiye115</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
-    <version>0.1.3</version>
+    <version>0.1.4</version>
     <name>Hyperliquid Java SDK</name>
     <description>Pure Java SDK for Hyperliquid: Info queries, WebSocket subscriptions, order placement and signing.</description>
     <url>https://github.com/heiye115/hyperliquid-java-sdk</url>
@@ -173,8 +173,6 @@
                 <configuration>
                     <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
                     <useSystemClassLoader>true</useSystemClassLoader>
-                    <!-- 允许通过 -DskipTests 控制跳过测试（若需同时跳过测试编译，使用 -Dmaven.test.skip=true） -->
-                    <skipTests>${skipTests}</skipTests>
                 </configuration>
             </plugin>
 
@@ -224,12 +222,12 @@
                     <source>${maven.compiler.source}</source>
                     <doclint>none</doclint>
                     <encoding>${project.build.sourceEncoding}</encoding>
-                    <charSet>UTF-8</charSet>
+<!--                    <charSet>UTF-8</charSet>-->
                     <docencoding>UTF-8</docencoding>
                     <!-- 不使用模块路径，避免依赖的自动模块名非法导致失败（如 jc-kzg-4844） -->
-                    <useModulePath>false</useModulePath>
+<!--                    <useModulePath>false</useModulePath>-->
                     <!-- 关闭依赖位置扫描，避免 JDK 模块系统尝试为依赖推导模块名（例如 jc-kzg-4844 导致无效模块名错误） -->
-                    <dependencyLocationsEnabled>false</dependencyLocationsEnabled>
+<!--                    <dependencyLocationsEnabled>false</dependencyLocationsEnabled>-->
                     <!-- 如果仍有边缘告警，确保不因告警而失败 -->
                     <failOnError>false</failOnError>
                     <!-- 支持通过 -Dmaven.javadoc.skip=true 在 package 时跳过 javadoc 生成 -->
