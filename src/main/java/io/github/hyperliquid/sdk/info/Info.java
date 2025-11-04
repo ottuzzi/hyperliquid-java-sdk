@@ -608,9 +608,8 @@ public class Info extends API {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "fundingHistory");
         payload.put("coin", this.coinIdToInfoCoinString(coin));
-        // 文档此处未明确 startMs/endMs 命名，保留历史命名；如需对齐可改为 startTime/endTime
-        payload.put("startMs", startMs);
-        payload.put("endMs", endMs);
+        payload.put("startTime", startMs);
+        payload.put("endTime", endMs);
         return post("/info", payload);
     }
 
@@ -622,9 +621,8 @@ public class Info extends API {
         payload.put("type", "userFundingHistory");
         payload.put("user", address);
         payload.put("coin", this.coinIdToInfoCoinString(coin));
-        // 文档此处未明确 startMs/endMs 命名，保留历史命名；如需对齐可改为 startTime/endTime
-        payload.put("startMs", startMs);
-        payload.put("endMs", endMs);
+        payload.put("startTime", startMs);
+        payload.put("endTime", endMs);
         return post("/info", payload);
     }
 
@@ -635,9 +633,8 @@ public class Info extends API {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "userNonFundingLedgerUpdates");
         payload.put("user", address);
-        // 文档未明确字段命名，保留历史命名；如需对齐可改为 startTime/endTime
-        payload.put("startMs", startMs);
-        payload.put("endMs", endMs);
+        payload.put("startTime", startMs);
+        payload.put("endTime", endMs);
         return post("/info", payload);
     }
 
@@ -648,9 +645,8 @@ public class Info extends API {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "historicalOrders");
         payload.put("user", address);
-        // 文档未明确字段命名，保留历史命名；如需对齐可改为 startTime/endTime
-        payload.put("startMs", startMs);
-        payload.put("endMs", endMs);
+        payload.put("startTime", startMs);
+        payload.put("endTime", endMs);
         return post("/info", payload);
     }
 
@@ -661,9 +657,8 @@ public class Info extends API {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "userTwapSliceFills");
         payload.put("user", address);
-        // 文档未明确字段命名，保留历史命名；如需对齐可改为 startTime/endTime
-        payload.put("startMs", startMs);
-        payload.put("endMs", endMs);
+        payload.put("startTime", startMs);
+        payload.put("endTime", endMs);
         return post("/info", payload);
     }
 
