@@ -8,12 +8,16 @@ import io.github.hyperliquid.sdk.parser.CandleParser;
 import io.github.hyperliquid.sdk.utils.Error;
 import io.github.hyperliquid.sdk.websocket.WebsocketManager;
 
-import java.util.*;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 /**
  * Info 客户端，提供行情、订单簿、用户状态等查询。
  */
 public class Info extends API {
+
     private final boolean skipWs;
     private WebsocketManager wsManager;
 
@@ -53,12 +57,16 @@ public class Info extends API {
         }
     }
 
-    /** 设置缓存 TTL（毫秒） */
+    /**
+     * 设置缓存 TTL（毫秒）
+     */
     public void setCacheTtlMs(long ttlMs) {
         this.cacheTtlMs = Math.max(1_000L, ttlMs);
     }
 
-    /** 获取缓存命中率统计与刷新时间信息 */
+    /**
+     * 获取缓存命中率统计与刷新时间信息
+     */
     public Map<String, Long> getCacheStats() {
         Map<String, Long> m = new LinkedHashMap<>();
         m.put("nameToCoinHits", nameToCoinHits);
@@ -71,7 +79,9 @@ public class Info extends API {
         return m;
     }
 
-    /** 显式刷新全部元数据缓存（线程安全） */
+    /**
+     * 显式刷新全部元数据缓存（线程安全）
+     */
     public synchronized void refreshMetadata() throws Error {
         nameToCoin.clear();
         coinToAsset.clear();
@@ -80,7 +90,9 @@ public class Info extends API {
         refreshSpotMeta();
     }
 
-    /** 刷新 perp 元数据，并更新映射与刷新时间 */
+    /**
+     * 刷新 perp 元数据，并更新映射与刷新时间
+     */
     private void refreshPerpMeta() throws Error {
         JsonNode meta = meta();
         if (meta != null && meta.has("universe") && meta.get("universe").isArray()) {
@@ -109,7 +121,9 @@ public class Info extends API {
         metaLastRefreshMs = System.currentTimeMillis();
     }
 
-    /** 刷新 spot 元数据，并更新映射与刷新时间 */
+    /**
+     * 刷新 spot 元数据，并更新映射与刷新时间
+     */
     private void refreshSpotMeta() throws Error {
         JsonNode spot = spotMeta();
         if (spot != null && spot.has("universe") && spot.get("universe").isArray()) {
@@ -132,7 +146,7 @@ public class Info extends API {
 
                 // 计算 szDecimals（取 base token 的 szDecimals）
                 if (spot.has("tokens") && asset.has("tokens") && asset.get("tokens").isArray()
-                        && asset.get("tokens").size() >= 1) {
+                        && !asset.get("tokens").isEmpty()) {
                     int baseTokenIndex = asset.get("tokens").get(0).asInt();
                     JsonNode tokens = spot.get("tokens");
                     if (tokens.isArray() && baseTokenIndex >= 0 && baseTokenIndex < tokens.size()) {
@@ -146,7 +160,9 @@ public class Info extends API {
         spotMetaLastRefreshMs = System.currentTimeMillis();
     }
 
-    /** TTL 自动刷新检查（必要时调用 refresh） */
+    /**
+     * TTL 自动刷新检查（必要时调用 refresh）
+     */
     private void ensureFreshCaches() {
         long now = System.currentTimeMillis();
         if (now - metaLastRefreshMs > cacheTtlMs) {
@@ -285,24 +301,6 @@ public class Info extends API {
         return post("/info", payload);
     }
 
-    /**
-     * K 线快照。
-     *
-     * @param coin       币种整数 ID
-     * @param intervalMs 间隔毫秒
-     * @param startMs    起始毫秒
-     * @param endMs      结束毫秒
-     * @return JSON 结果
-     */
-    public JsonNode candlesSnapshot(int coin, long intervalMs, long startMs, long endMs) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("type", "candlesSnapshot");
-        payload.put("coin", this.coinIdToInfoCoinString(coin));
-        payload.put("intervalMs", intervalMs);
-        payload.put("startMs", startMs);
-        payload.put("endMs", endMs);
-        return post("/info", payload);
-    }
 
     /**
      * K 线快照（与官方文档完全一致的接口名称与参数结构）。
@@ -335,21 +333,6 @@ public class Info extends API {
         payload.put("type", "candleSnapshot");
         payload.put("req", req);
         return post("/info", payload);
-    }
-
-    /**
-     * K 线快照（类型化返回，基于当前 SDK 的毫秒版接口）。
-     *
-     * @param coin       币种整数 ID
-     * @param intervalMs 间隔毫秒
-     * @param startMs    起始毫秒
-     * @param endMs      结束毫秒
-     * @return Candle 列表
-     */
-    public List<Candle> candlesSnapshotTyped(int coin, long intervalMs,
-                                             long startMs, long endMs) {
-        JsonNode node = candlesSnapshot(coin, intervalMs, startMs, endMs);
-        return CandleParser.parseList(node);
     }
 
     /**
@@ -1109,7 +1092,9 @@ public class Info extends API {
     // WebSocket 回调异常监听配置代理
     // ============================
 
-    /** 添加回调异常监听器 */
+    /**
+     * 添加回调异常监听器
+     */
     public void addCallbackErrorListener(WebsocketManager.CallbackErrorListener listener) {
         if (skipWs)
             return;
@@ -1117,7 +1102,9 @@ public class Info extends API {
             wsManager.addCallbackErrorListener(listener);
     }
 
-    /** 移除回调异常监听器 */
+    /**
+     * 移除回调异常监听器
+     */
     public void removeCallbackErrorListener(WebsocketManager.CallbackErrorListener listener) {
         if (skipWs)
             return;

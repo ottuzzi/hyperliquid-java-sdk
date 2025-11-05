@@ -36,7 +36,7 @@ Option B: Use as a Maven dependency (local install)
   <dependency>
     <groupId>io.github.heiye115</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
-    <version>0.1.3</version>
+    <version>0.1.4</version>
   </dependency>
   ```
 
