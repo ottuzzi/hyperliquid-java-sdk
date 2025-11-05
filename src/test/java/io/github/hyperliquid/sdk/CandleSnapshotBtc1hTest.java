@@ -11,7 +11,7 @@ import java.util.List;
 
 /**
  * 示例测试：使用 Info.candleSnapshot 接口获取 BTC 1 小时 K 线。
- *
+ * <p>
  * 说明：
  * - 为了直接得到类型安全的返回，本示例使用 SDK 提供的 candleSnapshotTyped 方法；
  * - 示例会自动解析 "BTC" 的整数 coinId，并在最近 24 小时窗口内拉取 1h K 线；
@@ -21,7 +21,7 @@ public class CandleSnapshotBtc1hTest {
 
     /**
      * 将资产 ID 转换为请求所需的 coinId。
-     *
+     * <p>
      * 约定：
      * - perp（合约）资产的 assetId 与 coinId 相同（为 meta.universe 的枚举下标）；
      * - spot（现货）资产的 assetId 为 index + 10000，因此 coinId = assetId - 10000。
@@ -65,42 +65,30 @@ public class CandleSnapshotBtc1hTest {
         long startTime = endTime - 24L * 3_600_000L;
 
         // 4) 拉取 1h K 线（类型化返回）。若服务端不接受整数 coinId，则回退为字符串形式（如 "BTC"）。
-        List<Candle> candles;
+        List<Candle> candles = null;
         try {
             candles = info.candleSnapshotTyped(coinId, "1h", startTime, endTime);
-        } catch ( Error.ClientError e) {
+        } catch (Error.ClientError e) {
             e.printStackTrace();
             // 兼容性回退：部分环境要求 coin 为字符串（如 "BTC" 或 "@107"）
             System.out.println("candleSnapshotTyped(coinId) 失败，尝试使用 coinName：" + e.getMessage());
             try {
                 candles = info.candleSnapshotTyped("BTC", "1h", startTime, endTime);
-            } catch ( Error.ClientError e2) {
+            } catch (Error.ClientError e2) {
                 e2.printStackTrace();
-                System.out.println(
-                        "candleSnapshotTyped(coinName) 仍失败，尝试使用 candlesSnapshot(intervalMs)：" + e2.getMessage());
-                candles = info.candlesSnapshotTyped(coinId, 3_600_000L, startTime, endTime);
             }
         }
 
         // 5) 断言与示例输出
-        Assertions.assertNotNull(candles, "返回结果不应为 null");
         Assertions.assertFalse(candles.isEmpty(), "K 线列表不应为空");
 
-        Candle last = candles.get(candles.size() - 1);
+        Candle last = candles.getLast();
         Assertions.assertEquals("1h", last.getI(), "间隔字符串应为 1h");
         Assertions.assertNotNull(last.getTStart(), "起始时间戳不应为 null");
         Assertions.assertNotNull(last.getT(), "结束时间戳不应为 null");
         Assertions.assertEquals("BTC", last.getS(), "币种名称应为 BTC");
         //打印所有Candle last
-        System.out.println(last.getT()+"," +
-                last.getTStart()+","+
-                last.getC()+","+
-                last.getH()+","+
-                last.getL()+","+
-                last.getO()+","+
-                last.getV()
-        );
-
+        System.out.println(last);
 
 
         long duration = last.getT() - last.getTStart();

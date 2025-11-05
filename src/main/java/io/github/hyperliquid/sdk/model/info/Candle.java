@@ -71,7 +71,7 @@ public class Candle {
      */
     @JsonProperty("s")
     private String s;
-    
+
     /**
      * 交易次数（整数），对应官方字段 "n"
      */
@@ -320,5 +320,22 @@ public class Candle {
      */
     public void setExtensions(Map<String, Object> extensions) {
         this.extensions = extensions;
+    }
+
+    @Override
+    public String toString() {
+        return "Candle{" +
+                "T=" + T +
+                ", t=" + t +
+                ", c='" + c + '\'' +
+                ", h='" + h + '\'' +
+                ", l='" + l + '\'' +
+                ", o='" + o + '\'' +
+                ", v='" + v + '\'' +
+                ", i='" + i + '\'' +
+                ", s='" + s + '\'' +
+                ", n=" + n +
+                ", extensions=" + extensions +
+                '}';
     }
 }

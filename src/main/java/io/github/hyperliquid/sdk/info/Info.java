@@ -301,24 +301,6 @@ public class Info extends API {
         return post("/info", payload);
     }
 
-    /**
-     * K 线快照。
-     *
-     * @param coin       币种整数 ID
-     * @param intervalMs 间隔毫秒
-     * @param startMs    起始毫秒
-     * @param endMs      结束毫秒
-     * @return JSON 结果
-     */
-    public JsonNode candlesSnapshot(int coin, long intervalMs, long startMs, long endMs) {
-        Map<String, Object> payload = new LinkedHashMap<>();
-        payload.put("type", "candlesSnapshot");
-        payload.put("coin", this.coinIdToInfoCoinString(coin));
-        payload.put("intervalMs", intervalMs);
-        payload.put("startMs", startMs);
-        payload.put("endMs", endMs);
-        return post("/info", payload);
-    }
 
     /**
      * K 线快照（与官方文档完全一致的接口名称与参数结构）。
@@ -351,21 +333,6 @@ public class Info extends API {
         payload.put("type", "candleSnapshot");
         payload.put("req", req);
         return post("/info", payload);
-    }
-
-    /**
-     * K 线快照（类型化返回，基于当前 SDK 的毫秒版接口）。
-     *
-     * @param coin       币种整数 ID
-     * @param intervalMs 间隔毫秒
-     * @param startMs    起始毫秒
-     * @param endMs      结束毫秒
-     * @return Candle 列表
-     */
-    public List<Candle> candlesSnapshotTyped(int coin, long intervalMs,
-                                             long startMs, long endMs) {
-        JsonNode node = candlesSnapshot(coin, intervalMs, startMs, endMs);
-        return CandleParser.parseList(node);
     }
 
     /**
