@@ -3,21 +3,25 @@ package io.github.hyperliquid.sdk.utils;
 /**
  * SDK 自定义异常类型定义。
  */
-public class Error extends RuntimeException {
+public class HypeError extends RuntimeException {
 
     /**
      * 构造基础错误。
      *
      * @param message 错误信息
      */
-    public Error(String message) {
+    public HypeError(String message) {
         super(message);
+    }
+
+    public HypeError(String message, Throwable e) {
+        super(message, e);
     }
 
     /**
      * 客户端错误（4xx）
      */
-    public static class ClientError extends Error {
+    public static class ClientHypeError extends HypeError {
         private final int statusCode;
 
         /**
@@ -26,7 +30,7 @@ public class Error extends RuntimeException {
          * @param statusCode HTTP 状态码
          * @param message    错误信息
          */
-        public ClientError(int statusCode, String message) {
+        public ClientHypeError(int statusCode, String message) {
             super(message);
             this.statusCode = statusCode;
         }
@@ -44,7 +48,7 @@ public class Error extends RuntimeException {
     /**
      * 服务器错误（5xx）
      */
-    public static class ServerError extends Error {
+    public static class ServerHypeError extends HypeError {
         private final int statusCode;
 
         /**
@@ -53,7 +57,7 @@ public class Error extends RuntimeException {
          * @param statusCode HTTP 状态码
          * @param message    错误信息
          */
-        public ServerError(int statusCode, String message) {
+        public ServerHypeError(int statusCode, String message) {
             super(message);
             this.statusCode = statusCode;
         }

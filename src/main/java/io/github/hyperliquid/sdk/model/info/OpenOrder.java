@@ -1,17 +1,9 @@
 package io.github.hyperliquid.sdk.model.info;
 
-import com.fasterxml.jackson.annotation.JsonAnyGetter;
-import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-
-import java.util.HashMap;
-import java.util.Map;
 
 /**
  * openOrders 返回的未成交订单实体。
- * 说明：
- * - 与 frontendOpenOrders 不同，openOrders 返回的字段更精简，coin 为字符串（如 "BTC" 或 "@107"）。
- * - 为保持兼容性，除已知字段外的其它返回内容会保存在 {@link #extensions} 中。
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class OpenOrder {
@@ -41,71 +33,6 @@ public class OpenOrder {
      */
     private Long timestamp;
 
-    /**
-     * 额外字段容器（用于兼容不同返回结构）
-     */
-    private Map<String, Object> extensions = new HashMap<>();
-
-    public OpenOrder() {
-    }
-
-    /**
-     * Builder 便于友好构建
-     */
-    public static class Builder {
-        private final OpenOrder o = new OpenOrder();
-
-        public Builder coin(String v) {
-            o.coin = v;
-            return this;
-        }
-
-        public Builder limitPx(String v) {
-            o.limitPx = v;
-            return this;
-        }
-
-        public Builder oid(Long v) {
-            o.oid = v;
-            return this;
-        }
-
-        public Builder side(String v) {
-            o.side = v;
-            return this;
-        }
-
-        public Builder sz(String v) {
-            o.sz = v;
-            return this;
-        }
-
-        public Builder timestamp(Long v) {
-            o.timestamp = v;
-            return this;
-        }
-
-        public Builder putExtra(String k, Object v) {
-            o.extensions.put(k, v);
-            return this;
-        }
-
-        public OpenOrder build() {
-            return o;
-        }
-    }
-
-    @JsonAnySetter
-    public void put(String key, Object value) {
-        extensions.put(key, value);
-    }
-
-    @JsonAnyGetter
-    public Map<String, Object> any() {
-        return extensions;
-    }
-
-    // Getter / Setter
 
     /**
      * 获取币种（如 "BTC" 或 "@107"）
@@ -191,18 +118,6 @@ public class OpenOrder {
         this.timestamp = timestamp;
     }
 
-    /**
-     * 获取扩展字段映射
-     */
-    public Map<String, Object> getExtensions() {
-        return extensions;
-    }
 
-    /**
-     * 设置扩展字段映射
-     */
-    public void setExtensions(Map<String, Object> extensions) {
-        this.extensions = extensions;
-    }
 }
 

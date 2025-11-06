@@ -1,7 +1,5 @@
 package io.github.hyperliquid.sdk.utils;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import io.github.hyperliquid.sdk.api.API;
 import io.github.hyperliquid.sdk.model.order.OrderRequest;
 import io.github.hyperliquid.sdk.model.order.OrderType;
 import io.github.hyperliquid.sdk.model.order.OrderWire;
@@ -26,10 +24,6 @@ import java.util.*;
  */
 public final class Signing {
 
-    /**
-     * 共享的 ObjectMapper，复用 API 层配置（忽略未知字段、ISO-8601 日期等）。
-     */
-    private static final ObjectMapper MAPPER = API.getSharedMapper();
 
     /**
      * 地址长度严格模式开关：
@@ -165,7 +159,7 @@ public final class Signing {
         try {
             MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
             // 1) msgpack 序列化 action
-            byte[] actionBytes = MAPPER.writeValueAsBytes(action);
+            byte[] actionBytes = JSONUtil.writeValueAsBytes(action);
             // 将 JSON 字节作为二进制封装（避免字段顺序影响）
             // 使用原始 payload 方式存储
             packer.packBinaryHeader(actionBytes.length);
@@ -196,7 +190,7 @@ public final class Signing {
             byte[] full = packer.toByteArray();
             return Hash.sha3(full);
         } catch (Exception e) {
-            throw new Error("Failed to compute action hash: " + e.getMessage());
+            throw new HypeError("Failed to compute action hash: " + e.getMessage());
         }
     }
 
@@ -256,7 +250,7 @@ public final class Signing {
      * @param types       类型定义（Map）
      * @param message     消息对象（Map）
      * @return r/s/v 十六进制签名
-     * @throws Error 当序列化或签名过程出现异常时抛出（封装底层异常信息）
+     * @throws HypeError 当序列化或签名过程出现异常时抛出（封装底层异常信息）
      */
     public static Map<String, String> signTypedData(Credentials credentials, Map<String, Object> domain,
                                                     Map<String, Object> types, Map<String, Object> message) {
@@ -279,7 +273,7 @@ public final class Signing {
                 Map<String, Object> msgCopy = new LinkedHashMap<>(message);
                 msgCopy.remove("primaryType");
                 typedData.put("message", msgCopy);
-                String json = MAPPER.writeValueAsString(typedData);
+                String json = JSONUtil.writeValueAsString(typedData);
                 payloadToSign = Hash.sha3(json.getBytes(StandardCharsets.UTF_8));
             }
 
@@ -294,7 +288,7 @@ public final class Signing {
             out.put("v", v);
             return out;
         } catch (Exception e) {
-            throw new Error("Failed to sign typed data: " + e.getMessage());
+            throw new HypeError("Failed to sign typed data: " + e.getMessage());
         }
     }
 

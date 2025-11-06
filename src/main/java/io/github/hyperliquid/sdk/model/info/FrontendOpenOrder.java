@@ -1,91 +1,146 @@
 package io.github.hyperliquid.sdk.model.info;
 
-import com.fasterxml.jackson.annotation.JsonAnyGetter;
-import com.fasterxml.jackson.annotation.JsonAnySetter;
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import io.github.hyperliquid.sdk.model.order.OrderWire;
-
-import java.util.HashMap;
-import java.util.Map;
-
 /**
+ * Retrieve a user's open orders with additional frontend info
  * 前端未成交订单实体封装。
- *
- * <p>说明：接口返回通常包含原始订单结构以及前端附加字段（如订单 ID、创建时间、
- * 可视化状态等）。本封装将原始订单映射为 {@link OrderWire}，其余字段
  */
-@JsonIgnoreProperties(ignoreUnknown = true)
+
 public class FrontendOpenOrder {
 
-    /**
-     * 原始订单线格式
-     */
-    private OrderWire order;
+    private String coin;
+    private Boolean isPositionTpsl;
+    private Boolean isTrigger;
+    private String limitPx;
+    private Long oid;
+    private String orderType;
+    private String origSz;
+    private Boolean reduceOnly;
+    private String side;
+    private String sz;
+    private Long timestamp;
+    private String triggerCondition;
+    private String triggerPx;
 
-    /**
-     * 附加字段容器
-     */
-    private Map<String, Object> extensions = new HashMap<>();
-
-    public FrontendOpenOrder() {
+    public String getCoin() {
+        return coin;
     }
 
-    /**
-     * Builder 便于友好构建
-     */
-    public static class Builder {
-        private final FrontendOpenOrder o = new FrontendOpenOrder();
-
-        public Builder order(OrderWire ow) {
-            o.order = ow;
-            return this;
-        }
-
-        public Builder putExtra(String k, Object v) {
-            o.extensions.put(k, v);
-            return this;
-        }
-
-        public FrontendOpenOrder build() {
-            return o;
-        }
+    public void setCoin(String coin) {
+        this.coin = coin;
     }
 
-    @JsonAnySetter
-    public void put(String key, Object value) {
-        extensions.put(key, value);
+    public Boolean getPositionTpsl() {
+        return isPositionTpsl;
     }
 
-    @JsonAnyGetter
-    public Map<String, Object> any() {
-        return extensions;
+    public void setPositionTpsl(Boolean positionTpsl) {
+        isPositionTpsl = positionTpsl;
     }
 
-    /**
-     * 获取原始订单
-     */
-    public OrderWire getOrder() {
-        return order;
+    public Boolean getTrigger() {
+        return isTrigger;
     }
 
-    /**
-     * 设置原始订单
-     */
-    public void setOrder(OrderWire order) {
-        this.order = order;
+    public void setTrigger(Boolean trigger) {
+        isTrigger = trigger;
     }
 
-    /**
-     * 获取附加字段
-     */
-    public Map<String, Object> getExtensions() {
-        return extensions;
+    public String getLimitPx() {
+        return limitPx;
     }
 
-    /**
-     * 设置附加字段
-     */
-    public void setExtensions(Map<String, Object> extensions) {
-        this.extensions = extensions;
+    public void setLimitPx(String limitPx) {
+        this.limitPx = limitPx;
+    }
+
+    public Long getOid() {
+        return oid;
+    }
+
+    public void setOid(Long oid) {
+        this.oid = oid;
+    }
+
+    public String getOrderType() {
+        return orderType;
+    }
+
+    public void setOrderType(String orderType) {
+        this.orderType = orderType;
+    }
+
+    public String getOrigSz() {
+        return origSz;
+    }
+
+    public void setOrigSz(String origSz) {
+        this.origSz = origSz;
+    }
+
+    public Boolean getReduceOnly() {
+        return reduceOnly;
+    }
+
+    public void setReduceOnly(Boolean reduceOnly) {
+        this.reduceOnly = reduceOnly;
+    }
+
+    public String getSide() {
+        return side;
+    }
+
+    public void setSide(String side) {
+        this.side = side;
+    }
+
+    public String getSz() {
+        return sz;
+    }
+
+    public void setSz(String sz) {
+        this.sz = sz;
+    }
+
+    public Long getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(Long timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    public String getTriggerCondition() {
+        return triggerCondition;
+    }
+
+    public void setTriggerCondition(String triggerCondition) {
+        this.triggerCondition = triggerCondition;
+    }
+
+    public String getTriggerPx() {
+        return triggerPx;
+    }
+
+    public void setTriggerPx(String triggerPx) {
+        this.triggerPx = triggerPx;
+    }
+
+    @Override
+    public String toString() {
+        return "FrontendOpenOrder{" +
+                "coin='" + coin + '\'' +
+                ", isPositionTpsl=" + isPositionTpsl +
+                ", isTrigger=" + isTrigger +
+                ", limitPx='" + limitPx + '\'' +
+                ", oid=" + oid +
+                ", orderType='" + orderType + '\'' +
+                ", origSz='" + origSz + '\'' +
+                ", reduceOnly=" + reduceOnly +
+                ", side='" + side + '\'' +
+                ", sz='" + sz + '\'' +
+                ", timestamp=" + timestamp +
+                ", triggerCondition='" + triggerCondition + '\'' +
+                ", triggerPx='" + triggerPx + '\'' +
+                '}';
     }
 }

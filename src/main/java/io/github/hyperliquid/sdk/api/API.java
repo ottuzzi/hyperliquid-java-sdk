@@ -1,11 +1,8 @@
 package io.github.hyperliquid.sdk.api;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.Module;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.DeserializationFeature;
-import com.fasterxml.jackson.databind.SerializationFeature;
-import io.github.hyperliquid.sdk.utils.Error;
+import io.github.hyperliquid.sdk.utils.HypeError;
+import io.github.hyperliquid.sdk.utils.JSONUtil;
 import okhttp3.*;
 
 import java.io.IOException;
@@ -16,46 +13,13 @@ import java.util.Objects;
  * API 客户端基类，封装 HTTP 请求与错误处理。
  */
 public class API {
+
     protected final String baseUrl;
+
     protected final OkHttpClient client;
-    protected final ObjectMapper mapper;
 
-    /**
-     * 全局共享的 ObjectMapper 单例，统一配置序列化/反序列化策略。
-     * 所有 API 子类默认复用该实例，避免多处配置不一致与性能浪费。
-     */
-    private static final ObjectMapper SHARED_MAPPER = createSharedMapper();
+    private static final MediaType JSON_MEDIA_TYPE = MediaType.parse("application/json; charset=utf-8");
 
-    /**
-     * 构建并配置共享 ObjectMapper。
-     */
-    private static ObjectMapper createSharedMapper() {
-        ObjectMapper om = new ObjectMapper();
-        // 反序列化容错：忽略未知字段，避免后端新增字段导致解析失败
-        om.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
-        // 序列化：日期使用 ISO-8601（不写为时间戳），便于日志可读
-        om.configure(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS, false);
-        return om;
-    }
-
-    /**
-     * 获取共享的 ObjectMapper。
-     */
-    public static ObjectMapper getSharedMapper() {
-        return SHARED_MAPPER;
-    }
-
-    /**
-     * 注册自定义模块（例如 JavaTimeModule、Jdk8Module 或自定义序列化器）。
-     * 该方法线程安全，应在应用启动时统一注册。
-     *
-     * @param module Jackson 模块
-     */
-    public static synchronized void registerModule(Module module) {
-        if (module != null) {
-            SHARED_MAPPER.registerModule(module);
-        }
-    }
 
     /**
      * 构造 API 客户端。
@@ -65,8 +29,6 @@ public class API {
      */
     public API(String baseUrl, int timeout) {
         this.baseUrl = Objects.requireNonNull(baseUrl, "baseUrl");
-        // 统一复用共享 ObjectMapper
-        this.mapper = SHARED_MAPPER;
         this.client = new OkHttpClient.Builder()
                 .callTimeout(Duration.ofSeconds(timeout))
                 .connectTimeout(Duration.ofSeconds(timeout))
@@ -75,20 +37,26 @@ public class API {
                 .build();
     }
 
+    public API(String baseUrl, OkHttpClient client) {
+        this.baseUrl = Objects.requireNonNull(baseUrl, "baseUrl");
+        this.client = client;
+    }
+
     /**
      * 发送 POST 请求到指定路径，并返回 JSON 结果。
      *
      * @param path    相对路径，例如 "/info"、"/exchange"
      * @param payload JSON 可序列化对象（会被 ObjectMapper 序列化）
      * @return 返回的 JSON 节点
-     * @throws Error.ClientError 当响应为 4xx
-     * @throws Error.ServerError 当响应为 5xx
+     * @throws HypeError.ClientHypeError 当响应为 4xx
+     * @throws HypeError.ServerHypeError 当响应为 5xx
      */
     public JsonNode post(String path, Object payload) {
         try {
             String url = baseUrl + path;
-            String json = mapper.writeValueAsString(payload);
-            RequestBody body = RequestBody.create(json, MediaType.parse("application/json"));
+            String json = JSONUtil.writeValueAsString(payload);
+
+            RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
             Request request = new Request.Builder()
                     .url(url)
                     .addHeader("Accept", "application/json")
@@ -96,20 +64,24 @@ public class API {
                     .build();
 
             try (Response response = client.newCall(request).execute()) {
+                // 统一处理响应体，避免重复读取
+                String responseBody = response.body() != null ? response.body().string() : "{}";
+
                 if (!response.isSuccessful()) {
                     int code = response.code();
-                    String err = response.body() != null ? response.body().string() : "";
+                    String errorMsg = String.format("HTTP %d: %s", code, responseBody);
+
                     if (code >= 400 && code < 500) {
-                        throw new Error.ClientError(code, err);
+                        throw new HypeError.ClientHypeError(code, errorMsg);
                     } else {
-                        throw new Error.ServerError(code, err);
+                        throw new HypeError.ServerHypeError(code, errorMsg);
                     }
                 }
-                String resp = response.body() != null ? response.body().string() : "{}";
-                return mapper.readTree(resp);
+
+                return JSONUtil.readTree(responseBody);
             }
         } catch (IOException e) {
-            throw new Error("Network or I/O error: " + e.getMessage());
+            throw new HypeError("Network error for POST " + path + ": " + e.getMessage(), e);
         }
     }
 }

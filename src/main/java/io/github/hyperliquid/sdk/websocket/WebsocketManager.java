@@ -1,7 +1,7 @@
 package io.github.hyperliquid.sdk.websocket;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import io.github.hyperliquid.sdk.utils.JSONUtil;
 import okhttp3.*;
 import okio.ByteString;
 
@@ -22,14 +22,13 @@ public class WebsocketManager {
      * 日志记录器
      */
     private static final Logger LOG = Logger.getLogger(WebsocketManager.class.getName());
-    
+
     /**
      * 原始 API 根地址（http/https），用于网络可用性检测
      */
     private final String baseUrl;
     private final String wsUrl;
     private final OkHttpClient client;
-    private final ObjectMapper mapper;
     private WebSocket webSocket;
     private volatile boolean stopped = false;
     private volatile boolean connected = false;
@@ -143,14 +142,12 @@ public class WebsocketManager {
      * 构造 WebSocket 管理器。
      *
      * @param baseUrl API 根地址（http/https），会自动转换为 ws/wss
-     * @param mapper  Jackson ObjectMapper
      */
-    public WebsocketManager(String baseUrl, ObjectMapper mapper) {
+    public WebsocketManager(String baseUrl) {
         this.baseUrl = baseUrl;
         String scheme = baseUrl.startsWith("https") ? "wss" : "ws";
         String tail = baseUrl.replaceFirst("https?", "");
         this.wsUrl = scheme + tail + "/ws";
-        this.mapper = mapper;
         this.client = new OkHttpClient.Builder()
                 .pingInterval(Duration.ofSeconds(20))
                 .readTimeout(Duration.ofSeconds(0)) // WebSocket 不设 readTimeout
@@ -192,7 +189,7 @@ public class WebsocketManager {
             @Override
             public void onMessage(WebSocket webSocket, String text) {
                 try {
-                    JsonNode msg = mapper.readTree(text);
+                    JsonNode msg = JSONUtil.readTree(text);
                     String identifier = wsMsgToIdentifier(msg);
                     if (identifier != null && subscriptions.containsKey(identifier)) {
                         for (ActiveSubscription sub : subscriptions.get(identifier)) {
@@ -251,7 +248,7 @@ public class WebsocketManager {
         if (webSocket != null && connected) {
             Map<String, Object> payload = Map.of("method", "ping");
             try {
-                webSocket.send(mapper.writeValueAsString(payload));
+                webSocket.send(JSONUtil.writeValueAsString(payload));
             } catch (Exception ignored) {
             }
         }
@@ -540,7 +537,7 @@ public class WebsocketManager {
         payload.put("method", "subscribe");
         payload.put("subscription", subscription);
         try {
-            webSocket.send(mapper.writeValueAsString(payload));
+            webSocket.send(JSONUtil.writeValueAsString(payload));
         } catch (Exception ignored) {
         }
     }
@@ -562,7 +559,7 @@ public class WebsocketManager {
         payload.put("method", "unsubscribe");
         payload.put("subscription", subscription);
         try {
-            webSocket.send(mapper.writeValueAsString(payload));
+            webSocket.send(JSONUtil.writeValueAsString(payload));
         } catch (Exception ignored) {
         }
     }

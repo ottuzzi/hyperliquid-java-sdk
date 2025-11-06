@@ -6,6 +6,7 @@ import io.github.hyperliquid.sdk.info.Info;
 import io.github.hyperliquid.sdk.model.order.OrderRequest;
 import io.github.hyperliquid.sdk.model.order.OrderWire;
 import io.github.hyperliquid.sdk.utils.Signing;
+import okhttp3.OkHttpClient;
 import org.web3j.crypto.Credentials;
 
 import java.util.*;
@@ -15,7 +16,7 @@ import java.util.*;
  * 当前版本实现核心下单与批量下单，其他 L1 操作将在后续补充。
  */
 public class Exchange extends API {
-    
+
     private final Credentials wallet;
     private final Info info;
 
@@ -29,6 +30,12 @@ public class Exchange extends API {
      */
     public Exchange(String baseUrl, int timeout, Credentials wallet, Info info) {
         super(baseUrl, timeout);
+        this.wallet = wallet;
+        this.info = info;
+    }
+
+    public Exchange(String baseUrl, OkHttpClient client, Credentials wallet, Info info) {
+        super(baseUrl, client);
         this.wallet = wallet;
         this.info = info;
     }
