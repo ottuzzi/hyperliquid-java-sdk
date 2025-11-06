@@ -8,7 +8,8 @@ A Software Development Kit (SDK) for the Hyperliquid decentralized exchange.
 
 - Info client: market data, order books, user state
 - Exchange client: order placement, bulk orders, cancel/modify
-- ExchangeManager: high-level module to manage multiple wallet credentials and unified Info access, making trading flows simpler
+- ExchangeManager: high-level module to manage multiple wallet credentials and unified Info access, making trading flows
+  simpler
 - WebSocket manager: connection lifecycle, heartbeat, resubscription, reconnect with backoff
 
 ## Installation
@@ -24,6 +25,24 @@ Build from source:
 mvn -q -DskipTests=true clean package
 mvn -q dependency:copy-dependencies
 ```
+
+Use as a dependency (Maven):
+
+If you are integrating this SDK into your own project, add the following dependency to your root-level pom.xml:
+
+```xml
+
+<dependency>
+    <groupId>io.github.heiye115</groupId>
+    <artifactId>hyperliquid-java-sdk</artifactId>
+    <version>0.2.0</version>
+</dependency>
+```
+
+Notes:
+
+- Ensure your project uses Java 21+.
+- If you previously built from source, you can remove local module references and rely on the Maven artifact directly.
 
 ## Usage
 

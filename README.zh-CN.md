@@ -25,6 +25,24 @@ mvn -q -DskipTests=true clean package
 mvn -q dependency:copy-dependencies
 ```
 
+作为依赖使用（Maven）：
+
+如果你要在自己的项目中集成本 SDK，请在项目根目录的 pom.xml 中添加以下依赖配置：
+
+```xml
+
+<dependency>
+    <groupId>io.github.heiye115</groupId>
+    <artifactId>hyperliquid-java-sdk</artifactId>
+    <version>0.2.0</version>
+</dependency>
+```
+
+说明：
+
+- 请确保项目使用的 JDK 版本为 21 或更高。
+- 如果之前通过源码构建并在本地引用模块，现在可直接使用 Maven 依赖以简化集成。
+
 ## 使用
 
 本文档仅保留与 ExchangeManager 相关的示例。
