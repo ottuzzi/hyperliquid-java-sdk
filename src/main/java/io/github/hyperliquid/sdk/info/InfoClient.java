@@ -17,7 +17,7 @@ import java.util.Map;
 /**
  * Info 客户端，提供行情、订单簿、用户状态等查询。
  */
-public class Info extends API {
+public class InfoClient extends API {
 
     private final boolean skipWs;
     private WebsocketManager wsManager;
@@ -43,7 +43,7 @@ public class Info extends API {
      * @param timeout 超时（秒）
      * @param skipWs  是否跳过创建 WebSocket 连接（用于测试）
      */
-    public Info(String baseUrl, int timeout, boolean skipWs) {
+    public InfoClient(String baseUrl, int timeout, boolean skipWs) {
         super(baseUrl, timeout);
         this.skipWs = skipWs;
         if (!skipWs) {
@@ -65,7 +65,7 @@ public class Info extends API {
      * @param httpClient OkHttpClient 实例
      * @param skipWs     是否跳过创建 WebSocket 连接（用于测试）
      */
-    public Info(String baseUrl, OkHttpClient httpClient, boolean skipWs) {
+    public InfoClient(String baseUrl, OkHttpClient httpClient, boolean skipWs) {
         super(baseUrl, httpClient);
         this.skipWs = skipWs;
         if (!skipWs) {

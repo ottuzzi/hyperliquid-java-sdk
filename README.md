@@ -10,8 +10,8 @@ A Software Development Kit (SDK) for the Hyperliquid decentralized exchange.
 - Project Overview (legacy anchor)
 - Installation
 - Usage
-  - Quick Start
-  - Compile & Run Demos
+    - Quick Start
+    - Compile & Run Demos
 - Configuration
 - Examples
 - Architecture
@@ -29,7 +29,8 @@ A Software Development Kit (SDK) for the Hyperliquid decentralized exchange.
 
 ## Project Overview
 
-This section has been reorganized into the Features module above for clarity. See Features for a high-level description of the SDK components.
+This section has been reorganized into the Features module above for clarity. See Features for a high-level description
+of the SDK components.
 
 ## Installation
 
@@ -71,8 +72,8 @@ This README focuses on ExchangeManager-related examples.
 
 ```java
 import io.github.hyperliquid.sdk.ExchangeManager;
-import io.github.hyperliquid.sdk.info.Info;
-import io.github.hyperliquid.sdk.exchange.Exchange;
+import io.github.hyperliquid.sdk.exchange.ExchangeClient;
+import io.github.hyperliquid.sdk.info.InfoClient;
 import io.github.hyperliquid.sdk.model.order.*;
 import io.github.hyperliquid.sdk.utils.Constants;
 
@@ -104,12 +105,12 @@ public class QuickExchangeManagerDemo {
                 .build();
 
         // Fetch market info and print BTC mid price
-        Info info = manager.getInfo();
+        InfoClient info = manager.getInfo();
         System.out.println("BTC mid: " + info.allMids().getOrDefault("BTC", "N/A"));
 
         // If a real private key is provided, place a sample limit order
         if (pk != null && !pk.isBlank()) {
-            Exchange ex = manager.getSingleExchange();
+            ExchangeClient ex = manager.getSingleExchange();
 
             // Order type: Limit, time-in-force GTC (Good-Till-Cancelled)
             OrderType type = new OrderType(new LimitOrderType("Gtc"), null);
@@ -149,12 +150,12 @@ java -cp .;examples;target/classes;target/dependency/* QuickExchangeManagerDemoC
 
 The ExchangeManager builder supports several options commonly used in examples:
 
-| Option      | Type    | Default     | Description                                                 |
-|-------------|---------|-------------|-------------------------------------------------------------|
-| baseUrl     | String  | Testnet URL | API base URL (e.g., `Constants.TESTNET_API_URL`)            |
-| timeout     | int     | Example: 10 | Request timeout (seconds). Example uses 10                  |
-| skipWs      | boolean | false/true  | Skip WebSocket subscription for simple demo flows           |
-| addPrivateKey | String | —           | Add a private key for trading. Use placeholder to skip real orders |
+| Option        | Type    | Default     | Description                                                        |
+|---------------|---------|-------------|--------------------------------------------------------------------|
+| baseUrl       | String  | Testnet URL | API base URL (e.g., `Constants.TESTNET_API_URL`)                   |
+| timeout       | int     | Example: 10 | Request timeout (seconds). Example uses 10                         |
+| skipWs        | boolean | false/true  | Skip WebSocket subscription for simple demo flows                  |
+| addPrivateKey | String  | —           | Add a private key for trading. Use placeholder to skip real orders |
 
 Environment variables:
 
@@ -203,20 +204,24 @@ sequenceDiagram
 
 - Use consistent terms: ExchangeManager, Info client, Exchange client, WebSocket manager.
 - Code examples include class-level and method-level comments to clarify responsibilities and steps.
-- Keep code fences with language annotations (e.g., `java`, `bash`, `xml`) for proper syntax highlighting on GitHub/GitLab.
+- Keep code fences with language annotations (e.g., `java`, `bash`, `xml`) for proper syntax highlighting on
+  GitHub/GitLab.
 
 ## Version & Synchronization
 
 - Minimum version: ExchangeManager requires SDK version >= 0.2.0.
-- Keep README aligned with SDK API changes. When updating builder options or example flows in code, update the Configuration and Usage sections accordingly.
-- The examples under `examples/` are the source of truth for runnable flows. If example signatures change, reflect those updates here.
+- Keep README aligned with SDK API changes. When updating builder options or example flows in code, update the
+  Configuration and Usage sections accordingly.
+- The examples under `examples/` are the source of truth for runnable flows. If example signatures change, reflect those
+  updates here.
 
 ## Verification Checklist
 
 - Examples compile and run with the commands provided (Windows PowerShell)
 - Document structure is clear and navigation works (English/Chinese links)
 - Code samples are properly formatted with comments and language annotations
-- Anchors from the original document remain valid (Project Overview, Installation, Usage, Verification Checklist, License)
+- Anchors from the original document remain valid (Project Overview, Installation, Usage, Verification Checklist,
+  License)
 - No residual references to removed or outdated examples
 
 ## License

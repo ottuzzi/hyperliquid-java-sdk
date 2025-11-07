@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import io.github.hyperliquid.sdk.utils.HypeError;
 import io.github.hyperliquid.sdk.utils.JSONUtil;
 import okhttp3.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -13,6 +15,8 @@ import java.util.Objects;
  * API 客户端基类，封装 HTTP 请求与错误处理。
  */
 public class API {
+
+    private static final Logger log = LoggerFactory.getLogger(API.class);
 
     protected final String baseUrl;
 
@@ -52,9 +56,10 @@ public class API {
      * @throws HypeError.ServerHypeError 当响应为 5xx
      */
     public JsonNode post(String path, Object payload) {
+        String url = baseUrl + path;
+        String json = "";
         try {
-            String url = baseUrl + path;
-            String json = JSONUtil.writeValueAsString(payload);
+            json = JSONUtil.writeValueAsString(payload);
 
             RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
             Request request = new Request.Builder()
@@ -77,10 +82,14 @@ public class API {
                         throw new HypeError.ServerHypeError(code, errorMsg);
                     }
                 }
+                log.debug("POST: {} ", url);
+                log.debug("Request: {}", json);
+                log.debug("Response: {}", responseBody);
 
                 return JSONUtil.readTree(responseBody);
             }
         } catch (IOException e) {
+            log.error("Network error for POST: {} Request: {}", path, json, e);
             throw new HypeError("Network error for POST " + path + ": " + e.getMessage(), e);
         }
     }

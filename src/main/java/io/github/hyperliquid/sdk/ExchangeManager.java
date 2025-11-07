@@ -1,7 +1,7 @@
 package io.github.hyperliquid.sdk;
 
-import io.github.hyperliquid.sdk.exchange.Exchange;
-import io.github.hyperliquid.sdk.info.Info;
+import io.github.hyperliquid.sdk.exchange.ExchangeClient;
+import io.github.hyperliquid.sdk.info.InfoClient;
 import io.github.hyperliquid.sdk.utils.Constants;
 import io.github.hyperliquid.sdk.utils.HypeError;
 import okhttp3.OkHttpClient;
@@ -22,12 +22,12 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ExchangeManager {
 
 
-    private final Info info;
+    private final InfoClient infoClient;
 
     /**
      * K:私钥 V:Exchange
      **/
-    private final Map<String, Exchange> exchangeMap;
+    private final Map<String, ExchangeClient> exchangeMap;
 
     /**
      * K:私钥 V:地址
@@ -35,23 +35,23 @@ public class ExchangeManager {
     private final Map<String, String> privateKeyMap;
 
 
-    private ExchangeManager(Info info, Map<String, Exchange> exchangeMap, Map<String, String> privateKeyMap) {
-        this.info = info;
+    private ExchangeManager(InfoClient infoClient, Map<String, ExchangeClient> exchangeMap, Map<String, String> privateKeyMap) {
+        this.infoClient = infoClient;
         this.exchangeMap = exchangeMap;
         this.privateKeyMap = privateKeyMap;
     }
 
     /**
-     * 获取 Info 实例
+     * 获取 InfoClient 实例
      **/
-    public Info getInfo() {
-        return info;
+    public InfoClient getInfoClient() {
+        return infoClient;
     }
 
     /**
-     * 获取单个Exchange , 如果有多个则返回第一个
+     * 获取单个ExchangeClient , 如果有多个则返回第一个
      **/
-    public Exchange getSingleExchange() {
+    public ExchangeClient getSingleExchangeClient() {
         if (exchangeMap.isEmpty()) {
             throw new HypeError("No exchange instances available.");
         }
@@ -61,8 +61,8 @@ public class ExchangeManager {
     /**
      * 根据私钥获取 Exchange 实例
      **/
-    public Exchange useExchange(String privateKey) {
-        Exchange ex = exchangeMap.get(privateKey);
+    public ExchangeClient useExchangeClient(String privateKey) {
+        ExchangeClient ex = exchangeMap.get(privateKey);
         if (ex == null) {
             throw new HypeError("No exchange instance found for the provided private key.");
         }
@@ -136,6 +136,12 @@ public class ExchangeManager {
             return this;
         }
 
+        public Builder enableDebugLogs() {
+            System.setProperty("org.slf4j.simpleLogger.log.io.github.hyperliquid", "DEBUG");
+            return this;
+        }
+
+
         private OkHttpClient getOkHttpClient() {
             return okHttpClient != null ? okHttpClient : new OkHttpClient.Builder()
                     .connectTimeout(Duration.ofSeconds(timeout))
@@ -147,14 +153,14 @@ public class ExchangeManager {
 
         public ExchangeManager build() {
             OkHttpClient httpClient = getOkHttpClient();
-            Info info = new Info(baseUrl, httpClient, skipWs);
-            Map<String, Exchange> exchangeMap = new ConcurrentHashMap<>();
+            InfoClient info = new InfoClient(baseUrl, httpClient, skipWs);
+            Map<String, ExchangeClient> exchangeMap = new ConcurrentHashMap<>();
             Map<String, String> privateKeyMap = new ConcurrentHashMap<>();
             if (!privateKeys.isEmpty()) {
                 for (String key : privateKeys) {
                     Credentials credentials = Credentials.create(key);
                     privateKeyMap.put(key, credentials.getAddress());
-                    exchangeMap.put(key, new Exchange(baseUrl, httpClient, credentials, info));
+                    exchangeMap.put(key, new ExchangeClient(baseUrl, httpClient, credentials, info));
                 }
             }
             return new ExchangeManager(info, exchangeMap, privateKeyMap);

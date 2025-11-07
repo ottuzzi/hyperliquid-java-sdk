@@ -2,7 +2,7 @@ package io.github.hyperliquid.sdk.exchange;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.github.hyperliquid.sdk.api.API;
-import io.github.hyperliquid.sdk.info.Info;
+import io.github.hyperliquid.sdk.info.InfoClient;
 import io.github.hyperliquid.sdk.model.order.OrderRequest;
 import io.github.hyperliquid.sdk.model.order.OrderWire;
 import io.github.hyperliquid.sdk.utils.Signing;
@@ -15,10 +15,10 @@ import java.util.*;
  * Exchange 客户端，负责下单、撤单、转账等 L1/L2 操作。
  * 当前版本实现核心下单与批量下单，其他 L1 操作将在后续补充。
  */
-public class Exchange extends API {
+public class ExchangeClient extends API {
 
     private final Credentials wallet;
-    private final Info info;
+    private final InfoClient info;
 
     /**
      * 构造 Exchange 客户端。
@@ -28,13 +28,13 @@ public class Exchange extends API {
      * @param wallet  用户钱包凭证（包含私钥与地址）
      * @param info    Info 客户端（用于名称到资产映射与行情辅助）
      */
-    public Exchange(String baseUrl, int timeout, Credentials wallet, Info info) {
+    public ExchangeClient(String baseUrl, int timeout, Credentials wallet, InfoClient info) {
         super(baseUrl, timeout);
         this.wallet = wallet;
         this.info = info;
     }
 
-    public Exchange(String baseUrl, OkHttpClient client, Credentials wallet, Info info) {
+    public ExchangeClient(String baseUrl, OkHttpClient client, Credentials wallet, InfoClient info) {
         super(baseUrl, client);
         this.wallet = wallet;
         this.info = info;

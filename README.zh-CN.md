@@ -10,8 +10,8 @@ Hyperliquid 去中心化交易所的软件开发工具包 (SDK)。
 - 项目概述（保留锚点）
 - 安装
 - 使用
-  - 快速开始
-  - 编译与运行示例
+    - 快速开始
+    - 编译与运行示例
 - 配置
 - 示例
 - 架构
@@ -71,8 +71,8 @@ mvn -q dependency:copy-dependencies
 
 ```java
 import io.github.hyperliquid.sdk.ExchangeManager;
-import io.github.hyperliquid.sdk.info.Info;
-import io.github.hyperliquid.sdk.exchange.Exchange;
+import io.github.hyperliquid.sdk.exchange.ExchangeClient;
+import io.github.hyperliquid.sdk.info.InfoClient;
 import io.github.hyperliquid.sdk.model.order.*;
 import io.github.hyperliquid.sdk.utils.Constants;
 
@@ -102,12 +102,12 @@ public class QuickExchangeManagerDemoCN {
                 .build();
 
         // 获取行情信息并打印 BTC 中间价
-        Info info = manager.getInfo();
+        InfoClient info = manager.getInfo();
         System.out.println("BTC 中间价: " + info.allMids().getOrDefault("BTC", "N/A"));
 
         // 若存在真实私钥，演示一次限价下单
         if (pk != null && !pk.isBlank()) {
-            Exchange ex = manager.getSingleExchange();
+            ExchangeClient ex = manager.getSingleExchange();
 
             // 订单类型：限价、有效期 GTC（Good-Till-Cancelled）
             OrderType type = new OrderType(new LimitOrderType("Gtc"), null);
@@ -147,12 +147,12 @@ java -cp .;examples;target/classes;target/dependency/* QuickExchangeManagerDemoC
 
 ExchangeManager 的 builder 常用选项如下：
 
-| 选项           | 类型    | 默认值      | 说明                                                          |
-|----------------|---------|-------------|---------------------------------------------------------------|
-| baseUrl        | String  | Testnet URL | API 基地址（例如 `Constants.TESTNET_API_URL`）                |
-| timeout        | int     | 示例：10    | 请求超时（秒），示例使用 10                                   |
-| skipWs         | boolean | false/true  | 是否跳过 WebSocket 订阅（用于简单演示场景）                    |
-| addPrivateKey  | String  | —           | 添加用于交易的私钥；使用占位私钥可避免真实下单                 |
+| 选项            | 类型      | 默认值         | 说明                                      |
+|---------------|---------|-------------|-----------------------------------------|
+| baseUrl       | String  | Testnet URL | API 基地址（例如 `Constants.TESTNET_API_URL`） |
+| timeout       | int     | 示例：10       | 请求超时（秒），示例使用 10                         |
+| skipWs        | boolean | false/true  | 是否跳过 WebSocket 订阅（用于简单演示场景）             |
+| addPrivateKey | String  | —           | 添加用于交易的私钥；使用占位私钥可避免真实下单                 |
 
 环境变量：
 
