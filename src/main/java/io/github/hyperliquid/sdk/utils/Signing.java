@@ -11,7 +11,6 @@ import org.web3j.crypto.Sign;
 import org.web3j.utils.Numeric;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
 import java.util.*;
 
 /**
@@ -23,7 +22,6 @@ import java.util.*;
  * - 为关键方法补充详细文档，包括 @return 与 @throws 注释，便于 IDE 友好提示与二次开发。
  */
 public final class Signing {
-
 
     /**
      * 地址长度严格模式开关：
@@ -156,42 +154,130 @@ public final class Signing {
      * @return 32字节哈希
      */
     public static byte[] actionHash(Object action, long nonce, String vaultAddress, Long expiresAfter) {
+        // 完全对齐 Python 的 action_hash 序列化与拼接规则：
+        // 1) 对 action 进行 MessagePack Map 编码（保持插入顺序）；
+        // 2) 直接追加 nonce 的 8 字节大端原始字节；
+        // 3) vaultAddress：null -> 追加单字节 0x00；非 null -> 追加 0x01 后紧接 20 字节地址；
+        // 4) expiresAfter：仅当非 null 时，追加单字节 0x00 + 8 字节大端原始字节；
         try {
-            MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
-            // 1) msgpack 序列化 action
-            byte[] actionBytes = JSONUtil.writeValueAsBytes(action);
-            // 将 JSON 字节作为二进制封装（避免字段顺序影响）
-            // 使用原始 payload 方式存储
-            packer.packBinaryHeader(actionBytes.length);
-            packer.writePayload(actionBytes);
+            byte[] actionMsgpack = packAsMsgpack(action);
 
-            // 2) nonce 8 字节（大端）
-            packer.packLong(nonce);
+            java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream(actionMsgpack.length + 64);
+            // 写入 msgpack 编码的 action
+            baos.write(actionMsgpack);
 
-            // 3) vaultAddress 前缀标志与地址字节
-            if (vaultAddress != null) {
-                packer.packBoolean(true);
+            // 追加 nonce 8 字节（大端）
+            byte[] nonceBytes = java.nio.ByteBuffer.allocate(8).putLong(nonce).array();
+            baos.write(nonceBytes);
+
+            // 追加 vaultAddress 标记及地址
+            if (vaultAddress == null) {
+                baos.write(new byte[]{0x00});
+            } else {
+                baos.write(new byte[]{0x01});
                 byte[] addrBytes = addressToBytes(vaultAddress);
-                packer.packBinaryHeader(addrBytes.length);
-                packer.writePayload(addrBytes);
-            } else {
-                packer.packBoolean(false);
+                if (addrBytes.length != 20) {
+                    throw new IllegalArgumentException("vaultAddress must be 20 bytes");
+                }
+                baos.write(addrBytes);
             }
 
-            // 4) expiresAfter 标志与值
+            // 追加 expiresAfter（仅当非 null）
             if (expiresAfter != null) {
-                packer.packBoolean(true);
-                packer.packLong(expiresAfter);
-            } else {
-                packer.packBoolean(false);
+                baos.write(new byte[]{0x00});
+                byte[] expBytes = java.nio.ByteBuffer.allocate(8).putLong(expiresAfter).array();
+                baos.write(expBytes);
             }
 
-            packer.close();
-            byte[] full = packer.toByteArray();
-            return Hash.sha3(full);
+            byte[] preimage = baos.toByteArray();
+            return Hash.sha3(preimage);
         } catch (Exception e) {
             throw new HypeError("Failed to compute action hash: " + e.getMessage());
         }
+    }
+
+    /**
+     * 将任意 Java 对象以 Python msgpack.packb 的等价方式编码。
+     * 支持 Map（建议使用 LinkedHashMap 保持插入顺序）、List、String、数字、布尔和 null。
+     */
+    private static byte[] packAsMsgpack(Object obj) throws java.io.IOException {
+        MessageBufferPacker packer = MessagePack.newDefaultBufferPacker();
+        writeMsgpack(packer, obj);
+        packer.close();
+        return packer.toByteArray();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static void writeMsgpack(MessageBufferPacker packer, Object obj) throws java.io.IOException {
+        switch (obj) {
+            case null -> {
+                packer.packNil();
+                return;
+            }
+            case Map<?, ?> ignored -> {
+                Map<Object, Object> map = (Map<Object, Object>) obj;
+                packer.packMapHeader(map.size());
+                for (Map.Entry<Object, Object> e : map.entrySet()) {
+                    // 键按字符串编码
+                    packer.packString(String.valueOf(e.getKey()));
+                    writeMsgpack(packer, e.getValue());
+                }
+                return;
+            }
+            case List<?> ignored -> {
+                List<Object> list = (List<Object>) obj;
+                packer.packArrayHeader(list.size());
+                for (Object o : list) {
+                    writeMsgpack(packer, o);
+                }
+                return;
+            }
+            case String s -> {
+                packer.packString(s);
+                return;
+            }
+            case Integer i -> {
+                packer.packInt(i);
+                return;
+            }
+            case Long l -> {
+                packer.packLong(l);
+                return;
+            }
+            case Double v -> {
+                packer.packDouble(v);
+                return;
+            }
+            case Float v -> {
+                packer.packDouble(v.doubleValue());
+                return;
+            }
+            case Boolean b -> {
+                packer.packBoolean(b);
+                return;
+            }
+
+            // 其它类型（如自定义 POJO）统一转 Map 或 String
+            case OrderWire ow -> {
+                Map<String, Object> m = new LinkedHashMap<>();
+                m.put("coin", ow.coin);
+                m.put("isBuy", ow.isBuy);
+                m.put("sz", ow.sz);
+                if (ow.limitPx != null)
+                    m.put("limitPx", ow.limitPx);
+                if (ow.orderType != null)
+                    m.put("orderType", ow.orderType);
+                m.put("reduceOnly", ow.reduceOnly);
+                if (ow.cloid != null)
+                    m.put("cloid", ow.cloid.getRaw());
+                writeMsgpack(packer, m);
+                return;
+            }
+            default -> {
+            }
+        }
+        // 回退为字符串表示
+        packer.packString(String.valueOf(obj));
     }
 
     /**
@@ -246,50 +332,87 @@ public final class Signing {
      * 为用户签名 L1 动作（EIP-712 Typed Data）。
      *
      * @param credentials 用户凭证（私钥）
-     * @param domain      EIP-712 域（Map）
-     * @param types       类型定义（Map）
-     * @param message     消息对象（Map）
      * @return r/s/v 十六进制签名
      * @throws HypeError 当序列化或签名过程出现异常时抛出（封装底层异常信息）
      */
-    public static Map<String, String> signTypedData(Credentials credentials, Map<String, Object> domain,
-                                                    Map<String, Object> types, Map<String, Object> message) {
+    public static Map<String, Object> signTypedData(Credentials credentials, String typedDataJson) {
+        // 使用标准 EIP-712 结构化数据编码与签名（与 Python eth_account.encode_typed_data 一致）。
         try {
-            // 如果 message 中包含 Base64 的 actionHash，则直接对其进行签名，避免严格的 TypedData 结构校验失败。
-            byte[] payloadToSign = null;
-            Object actionHashObj = message.get("actionHash");
-            if (actionHashObj instanceof String) {
-                try {
-                    payloadToSign = Base64.getDecoder().decode((String) actionHashObj);
-                } catch (IllegalArgumentException ignored) {
-                }
-            }
-            if (payloadToSign == null) {
-                // 回退：对 typedData 的 JSON 进行 keccak256，再进行签名（这是非标准 EIP-712 的简化处理，用于保证签名流程可用）。
-                Map<String, Object> typedData = new LinkedHashMap<>();
-                typedData.put("types", types);
-                typedData.put("primaryType", message.getOrDefault("primaryType", "Action"));
-                typedData.put("domain", domain);
-                Map<String, Object> msgCopy = new LinkedHashMap<>(message);
-                msgCopy.remove("primaryType");
-                typedData.put("message", msgCopy);
-                String json = JSONUtil.writeValueAsString(typedData);
-                payloadToSign = Hash.sha3(json.getBytes(StandardCharsets.UTF_8));
-            }
-
-            Sign.SignatureData sig = Sign.signMessage(payloadToSign, credentials.getEcKeyPair(), false);
+            org.web3j.crypto.StructuredDataEncoder encoder = new org.web3j.crypto.StructuredDataEncoder(typedDataJson);
+            byte[] digest = encoder.hashStructuredData();
+            Sign.SignatureData sig = Sign.signMessage(digest, credentials.getEcKeyPair(), false);
             String r = Numeric.toHexString(sig.getR());
             String s = Numeric.toHexString(sig.getS());
-            String v = Numeric.toHexString(sig.getV());
-
-            Map<String, String> out = new LinkedHashMap<>();
+            int vInt = new java.math.BigInteger(1, sig.getV()).intValue();
+            Map<String, Object> out = new LinkedHashMap<>();
             out.put("r", r);
             out.put("s", s);
-            out.put("v", v);
+            out.put("v", vInt);
             return out;
         } catch (Exception e) {
             throw new HypeError("Failed to sign typed data: " + e.getMessage());
         }
+    }
+
+    /**
+     * 构造 Phantom Agent（与 Python construct_phantom_agent 一致）。
+     */
+    public static Map<String, Object> constructPhantomAgent(byte[] hash, boolean isMainnet) {
+        Map<String, Object> agent = new LinkedHashMap<>();
+        agent.put("source", isMainnet ? "a" : "b");
+        // bytes32 以 0x 前缀十六进制字符串表达，兼容 web3j StructuredDataEncoder
+        agent.put("connectionId", Numeric.toHexString(hash));
+        return agent;
+    }
+
+    /**
+     * 生成 EIP-712 TypedData JSON（与 Python l1_payload 一致）。
+     */
+    public static String l1PayloadJson(Map<String, Object> phantomAgent) {
+        Map<String, Object> domain = new LinkedHashMap<>();
+        domain.put("chainId", 1337);
+        domain.put("name", "Exchange");
+        domain.put("verifyingContract", "0x0000000000000000000000000000000000000000");
+        domain.put("version", "1");
+
+        List<Map<String, Object>> agentTypes = new ArrayList<>();
+        agentTypes.add(Map.of("name", "source", "type", "string"));
+        agentTypes.add(Map.of("name", "connectionId", "type", "bytes32"));
+
+        List<Map<String, Object>> eipTypes = new ArrayList<>();
+        eipTypes.add(Map.of("name", "name", "type", "string"));
+        eipTypes.add(Map.of("name", "version", "type", "string"));
+        eipTypes.add(Map.of("name", "chainId", "type", "uint256"));
+        eipTypes.add(Map.of("name", "verifyingContract", "type", "address"));
+
+        Map<String, Object> types = new LinkedHashMap<>();
+        types.put("Agent", agentTypes);
+        types.put("EIP712Domain", eipTypes);
+
+        Map<String, Object> full = new LinkedHashMap<>();
+        full.put("domain", domain);
+        full.put("types", types);
+        full.put("primaryType", "Agent");
+        full.put("message", phantomAgent);
+
+        com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
+        try {
+            return om.writeValueAsString(full);
+        } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+            throw new HypeError("Failed to build typed data json: " + e.getMessage());
+        }
+    }
+
+    /**
+     * 对 L1 动作进行签名（完整流程）：计算 actionHash -> 构造 phantom agent -> 生成 EIP-712 typed data
+     * -> 签名。
+     */
+    public static Map<String, Object> signL1Action(Credentials credentials, Object action, String vaultAddress,
+                                                   long nonce, Long expiresAfter, boolean isMainnet) {
+        byte[] hash = actionHash(action, nonce, vaultAddress, expiresAfter);
+        Map<String, Object> agent = constructPhantomAgent(hash, isMainnet);
+        String typedJson = l1PayloadJson(agent);
+        return signTypedData(credentials, typedJson);
     }
 
     /**

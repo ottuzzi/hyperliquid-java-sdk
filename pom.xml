@@ -68,6 +68,7 @@
         <central.autoPublish>false</central.autoPublish>
         <maven.javadoc.skip>true</maven.javadoc.skip>
         <slf4j.version>2.0.17</slf4j.version>
+        <caffeine.version>3.2.3</caffeine.version>
     </properties>
 
     <dependencies>
@@ -121,6 +122,12 @@
             <artifactId>mockito-core</artifactId>
             <version>${mockito.version}</version>
             <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+            <version>${caffeine.version}</version>
         </dependency>
 
         <dependency>

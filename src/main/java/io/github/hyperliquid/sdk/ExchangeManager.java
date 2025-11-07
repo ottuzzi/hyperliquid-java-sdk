@@ -26,7 +26,7 @@ public class ExchangeManager {
     private final InfoClient infoClient;
 
     /**
-     * K:私钥 V:Exchange
+     * K:私钥 V:ExchangeClient
      **/
     private final Map<String, ExchangeClient> exchangeMap;
 
@@ -60,7 +60,7 @@ public class ExchangeManager {
     }
 
     /**
-     * 根据私钥获取 Exchange 实例
+     * 根据私钥获取 ExchangeClient 实例
      **/
     public ExchangeClient useExchangeClient(String privateKey) {
         ExchangeClient ex = exchangeMap.get(privateKey);
@@ -109,6 +109,11 @@ public class ExchangeManager {
 
         public Builder baseUrl(String baseUrl) {
             this.baseUrl = baseUrl;
+            return this;
+        }
+
+        public Builder testNetUrl() {
+            this.baseUrl = Constants.TESTNET_API_URL;
             return this;
         }
 
@@ -162,7 +167,7 @@ public class ExchangeManager {
                 for (String key : privateKeys) {
                     Credentials credentials = Credentials.create(key);
                     privateKeyMap.put(key, credentials.getAddress());
-                    exchangeMap.put(key, new ExchangeClient(hypeHttpClient, credentials));
+                    exchangeMap.put(key, new ExchangeClient(hypeHttpClient, credentials, info::nameToAsset));
                 }
             }
             return new ExchangeManager(info, exchangeMap, privateKeyMap);

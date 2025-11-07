@@ -73,7 +73,6 @@ mvn -q dependency:copy-dependencies
 ```java
 import io.github.hyperliquid.sdk.ExchangeManager;
 import io.github.hyperliquid.sdk.client.ExchangeClient;
-import io.github.hyperliquid.sdk.client.InfoClient;
 import io.github.hyperliquid.sdk.model.order.*;
 import io.github.hyperliquid.sdk.utils.Constants;
 
@@ -103,7 +102,7 @@ public class QuickExchangeManagerDemoCN {
                 .build();
 
         // 获取行情信息并打印 BTC 中间价
-        InfoClient info = manager.getInfo();
+        InfoClientBK info = manager.getInfo();
         System.out.println("BTC 中间价: " + info.allMids().getOrDefault("BTC", "N/A"));
 
         // 若存在真实私钥，演示一次限价下单

@@ -74,7 +74,6 @@ This README focuses on ExchangeManager-related examples.
 ```java
 import io.github.hyperliquid.sdk.ExchangeManager;
 import io.github.hyperliquid.sdk.client.ExchangeClient;
-import io.github.hyperliquid.sdk.client.InfoClient;
 import io.github.hyperliquid.sdk.model.order.*;
 import io.github.hyperliquid.sdk.utils.Constants;
 
@@ -106,7 +105,7 @@ public class QuickExchangeManagerDemo {
                 .build();
 
         // Fetch market info and print BTC mid price
-        InfoClient info = manager.getInfo();
+        InfoClientBK info = manager.getInfo();
         System.out.println("BTC mid: " + info.allMids().getOrDefault("BTC", "N/A"));
 
         // If a real private key is provided, place a sample limit order

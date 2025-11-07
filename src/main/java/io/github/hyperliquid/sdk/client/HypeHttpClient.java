@@ -39,7 +39,8 @@ public class HypeHttpClient {
         String json = "";
         try {
             json = JSONUtil.writeValueAsString(payload);
-
+            log.debug("POST: {} ", url);
+            log.debug("Request: {}", json);
             RequestBody body = RequestBody.create(json, JSON_MEDIA_TYPE);
             Request request = new Request.Builder()
                     .url(url)
@@ -61,15 +62,18 @@ public class HypeHttpClient {
                         throw new HypeError.ServerHypeError(code, errorMsg);
                     }
                 }
-                log.debug("POST: {} ", url);
-                log.debug("Request: {}", json);
-                log.debug("Response: {}", responseBody);
 
+                log.debug("Response: {}", responseBody);
                 return JSONUtil.readTree(responseBody);
             }
         } catch (IOException e) {
             log.error("Network error for POST: {} Request: {}", path, json, e);
             throw new HypeError("Network error for POST " + path + ": " + e.getMessage(), e);
         }
+    }
+
+
+    public String getBaseUrl() {
+        return baseUrl;
     }
 }
