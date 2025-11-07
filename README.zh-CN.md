@@ -50,6 +50,7 @@ mvn -q dependency:copy-dependencies
 如果你要在自己的项目中集成本 SDK，请在项目根目录的 pom.xml 中添加以下依赖配置：
 
 ```xml
+
 <dependency>
     <groupId>io.github.heiye115</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
@@ -71,8 +72,8 @@ mvn -q dependency:copy-dependencies
 
 ```java
 import io.github.hyperliquid.sdk.ExchangeManager;
-import io.github.hyperliquid.sdk.exchange.ExchangeClient;
-import io.github.hyperliquid.sdk.info.InfoClient;
+import io.github.hyperliquid.sdk.client.ExchangeClient;
+import io.github.hyperliquid.sdk.client.InfoClient;
 import io.github.hyperliquid.sdk.model.order.*;
 import io.github.hyperliquid.sdk.utils.Constants;
 

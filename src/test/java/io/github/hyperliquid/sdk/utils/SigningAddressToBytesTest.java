@@ -1,12 +1,13 @@
 package io.github.hyperliquid.sdk.utils;
 
-import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * 边界测试：Signing.addressToBytes 地址长度校验与兼容行为。
- *
+ * <p>
  * 覆盖场景：
  * - 严格模式（默认）：20 字节地址正常返回；短地址/长地址/非十六进制输入抛出异常；
  * - 兼容模式：短地址左侧补零、长地址截取末尾 20 字节。

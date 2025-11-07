@@ -1,14 +1,12 @@
-package io.github.hyperliquid.sdk.info;
+package io.github.hyperliquid.sdk.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.type.TypeFactory;
-import io.github.hyperliquid.sdk.api.API;
 import io.github.hyperliquid.sdk.model.CandleInterval;
 import io.github.hyperliquid.sdk.model.info.*;
 import io.github.hyperliquid.sdk.utils.HypeError;
 import io.github.hyperliquid.sdk.utils.JSONUtil;
 import io.github.hyperliquid.sdk.websocket.WebsocketManager;
-import okhttp3.OkHttpClient;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -17,10 +15,11 @@ import java.util.Map;
 /**
  * Info 客户端，提供行情、订单簿、用户状态等查询。
  */
-public class InfoClient extends API {
+public class InfoClient {
 
     private final boolean skipWs;
     private WebsocketManager wsManager;
+    private final HypeHttpClient hypeHttpClient;
 
     // 元数据缓存与映射
     private final Map<String, Integer> nameToCoin = new java.util.concurrent.ConcurrentHashMap<>();
@@ -36,37 +35,16 @@ public class InfoClient extends API {
     private volatile long coinToAssetHits = 0L;
     private volatile long coinToAssetMisses = 0L;
 
-    /**
-     * 构造 Info 客户端。
-     *
-     * @param baseUrl API 根地址
-     * @param timeout 超时（秒）
-     * @param skipWs  是否跳过创建 WebSocket 连接（用于测试）
-     */
-    public InfoClient(String baseUrl, int timeout, boolean skipWs) {
-        super(baseUrl, timeout);
-        this.skipWs = skipWs;
-        if (!skipWs) {
-            this.wsManager = new WebsocketManager(baseUrl);
-        }
-        // 初始化：尝试刷新 perp 与 spot 元数据，填充映射
-        try {
-            refreshPerpMeta();
-            refreshSpotMeta();
-        } catch (HypeError e) {
-            // 初始化失败不影响基本功能，可延迟到调用时再请求
-        }
-    }
 
     /**
-     * 构造 Info 客户端。
+     * 构造 InfoClient 客户端。
      *
-     * @param baseUrl    API 根地址
-     * @param httpClient OkHttpClient 实例
-     * @param skipWs     是否跳过创建 WebSocket 连接（用于测试）
+     * @param baseUrl        API 根地址
+     * @param hypeHttpClient HTTP客户端实例
+     * @param skipWs         是否跳过创建 WebSocket 连接（用于测试）
      */
-    public InfoClient(String baseUrl, OkHttpClient httpClient, boolean skipWs) {
-        super(baseUrl, httpClient);
+    public InfoClient(String baseUrl, HypeHttpClient hypeHttpClient, boolean skipWs) {
+        this.hypeHttpClient = hypeHttpClient;
         this.skipWs = skipWs;
         if (!skipWs) {
             this.wsManager = new WebsocketManager(baseUrl);
@@ -203,7 +181,7 @@ public class InfoClient extends API {
     }
 
     public JsonNode postInfo(Object payload) {
-        return post("/info", payload);
+        return hypeHttpClient.post("/info", payload);
     }
 
     /**

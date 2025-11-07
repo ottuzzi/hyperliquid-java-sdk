@@ -1,12 +1,9 @@
-package io.github.hyperliquid.sdk.exchange;
+package io.github.hyperliquid.sdk.client;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.github.hyperliquid.sdk.api.API;
-import io.github.hyperliquid.sdk.info.InfoClient;
 import io.github.hyperliquid.sdk.model.order.OrderRequest;
 import io.github.hyperliquid.sdk.model.order.OrderWire;
 import io.github.hyperliquid.sdk.utils.Signing;
-import okhttp3.OkHttpClient;
 import org.web3j.crypto.Credentials;
 
 import java.util.*;
@@ -15,29 +12,21 @@ import java.util.*;
  * Exchange 客户端，负责下单、撤单、转账等 L1/L2 操作。
  * 当前版本实现核心下单与批量下单，其他 L1 操作将在后续补充。
  */
-public class ExchangeClient extends API {
+public class ExchangeClient {
 
     private final Credentials wallet;
-    private final InfoClient info;
+
+    private final HypeHttpClient hypeHttpClient;
 
     /**
      * 构造 Exchange 客户端。
      *
-     * @param baseUrl API 根地址
-     * @param timeout 超时秒数
-     * @param wallet  用户钱包凭证（包含私钥与地址）
-     * @param info    Info 客户端（用于名称到资产映射与行情辅助）
+     * @param hypeHttpClient HTTP客户端实例
+     * @param wallet         用户钱包凭证（包含私钥与地址）
      */
-    public ExchangeClient(String baseUrl, int timeout, Credentials wallet, InfoClient info) {
-        super(baseUrl, timeout);
+    public ExchangeClient(HypeHttpClient hypeHttpClient, Credentials wallet) {
+        this.hypeHttpClient = hypeHttpClient;
         this.wallet = wallet;
-        this.info = info;
-    }
-
-    public ExchangeClient(String baseUrl, OkHttpClient client, Credentials wallet, InfoClient info) {
-        super(baseUrl, client);
-        this.wallet = wallet;
-        this.info = info;
     }
 
     /**
@@ -47,7 +36,7 @@ public class ExchangeClient extends API {
      * @return 交易接口响应 JSON
      */
     public JsonNode order(OrderRequest req) {
-        int assetId = info.nameToAsset(req.getCoin());
+        int assetId = 0;//info.nameToAsset(req.getCoin());
         OrderWire wire = Signing.orderRequestToOrderWire(assetId, req);
         Map<String, Object> action = Signing.orderWiresToOrderAction(List.of(wire));
 
@@ -63,7 +52,7 @@ public class ExchangeClient extends API {
     public JsonNode bulkOrders(List<OrderRequest> requests) {
         List<OrderWire> wires = new ArrayList<>();
         for (OrderRequest r : requests) {
-            int assetId = info.nameToAsset(r.getCoin());
+            int assetId = 0;//info.nameToAsset(r.getCoin());
             wires.add(Signing.orderRequestToOrderWire(assetId, r));
         }
         Map<String, Object> action = Signing.orderWiresToOrderAction(wires);
@@ -78,7 +67,7 @@ public class ExchangeClient extends API {
      * @return 响应 JSON
      */
     public JsonNode cancel(String coinName, int oid) {
-        int assetId = info.nameToAsset(coinName);
+        int assetId = 0;// info.nameToAsset(coinName);
         Map<String, Object> cancel = new LinkedHashMap<>();
         cancel.put("coin", assetId);
         cancel.put("oid", oid);
@@ -96,7 +85,7 @@ public class ExchangeClient extends API {
      * @return 响应 JSON
      */
     public JsonNode cancelByCloid(String coinName, String cloid) {
-        int assetId = info.nameToAsset(coinName);
+        int assetId = 0;//info.nameToAsset(coinName);
         Map<String, Object> cancel = new LinkedHashMap<>();
         cancel.put("coin", assetId);
         cancel.put("cloid", cloid);
@@ -115,7 +104,7 @@ public class ExchangeClient extends API {
      * @return 响应 JSON
      */
     public JsonNode modifyOrder(String coinName, int oid, OrderRequest newReq) {
-        int assetId = info.nameToAsset(coinName);
+        int assetId = 0;// info.nameToAsset(coinName);
         OrderWire wire = Signing.orderRequestToOrderWire(assetId, newReq);
         Map<String, Object> modify = new LinkedHashMap<>();
         modify.put("coin", assetId);
@@ -163,6 +152,6 @@ public class ExchangeClient extends API {
         if (expiresAfter != null) payload.put("expiresAfter", expiresAfter);
         payload.put("signatureChainId", 1);
 
-        return post("/exchange", payload);
+        return hypeHttpClient.post("/exchange", payload);
     }
 }

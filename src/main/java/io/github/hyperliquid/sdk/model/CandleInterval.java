@@ -8,7 +8,7 @@ import java.time.Duration;
  * K线时间间隔枚举
  */
 public enum CandleInterval {
-    
+
     // 分钟级别
     MINUTE_1("1m", Duration.ofMinutes(1)),
     MINUTE_3("3m", Duration.ofMinutes(3)),

@@ -51,6 +51,7 @@ Use as a dependency (Maven):
 If you are integrating this SDK into your own project, add the following dependency to your root-level pom.xml:
 
 ```xml
+
 <dependency>
     <groupId>io.github.heiye115</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
@@ -72,8 +73,8 @@ This README focuses on ExchangeManager-related examples.
 
 ```java
 import io.github.hyperliquid.sdk.ExchangeManager;
-import io.github.hyperliquid.sdk.exchange.ExchangeClient;
-import io.github.hyperliquid.sdk.info.InfoClient;
+import io.github.hyperliquid.sdk.client.ExchangeClient;
+import io.github.hyperliquid.sdk.client.InfoClient;
 import io.github.hyperliquid.sdk.model.order.*;
 import io.github.hyperliquid.sdk.utils.Constants;
 

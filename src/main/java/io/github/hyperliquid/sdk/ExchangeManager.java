@@ -1,7 +1,8 @@
 package io.github.hyperliquid.sdk;
 
-import io.github.hyperliquid.sdk.exchange.ExchangeClient;
-import io.github.hyperliquid.sdk.info.InfoClient;
+import io.github.hyperliquid.sdk.client.ExchangeClient;
+import io.github.hyperliquid.sdk.client.HypeHttpClient;
+import io.github.hyperliquid.sdk.client.InfoClient;
 import io.github.hyperliquid.sdk.utils.Constants;
 import io.github.hyperliquid.sdk.utils.HypeError;
 import okhttp3.OkHttpClient;
@@ -153,14 +154,15 @@ public class ExchangeManager {
 
         public ExchangeManager build() {
             OkHttpClient httpClient = getOkHttpClient();
-            InfoClient info = new InfoClient(baseUrl, httpClient, skipWs);
+            HypeHttpClient hypeHttpClient = new HypeHttpClient(baseUrl, httpClient);
+            InfoClient info = new InfoClient(baseUrl, hypeHttpClient, skipWs);
             Map<String, ExchangeClient> exchangeMap = new ConcurrentHashMap<>();
             Map<String, String> privateKeyMap = new ConcurrentHashMap<>();
             if (!privateKeys.isEmpty()) {
                 for (String key : privateKeys) {
                     Credentials credentials = Credentials.create(key);
                     privateKeyMap.put(key, credentials.getAddress());
-                    exchangeMap.put(key, new ExchangeClient(baseUrl, httpClient, credentials, info));
+                    exchangeMap.put(key, new ExchangeClient(hypeHttpClient, credentials));
                 }
             }
             return new ExchangeManager(info, exchangeMap, privateKeyMap);
