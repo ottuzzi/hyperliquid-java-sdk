@@ -26,8 +26,10 @@ public class InfoClient {
     private final HypeHttpClient hypeHttpClient;
 
     private final Cache<String, Integer> nameToAssetCache = Caffeine.newBuilder()
-            .maximumSize(1000).expireAfterWrite(10, TimeUnit.MINUTES)
-            .recordStats().build();
+            .maximumSize(1000)
+            .expireAfterWrite(10, TimeUnit.MINUTES)
+            .recordStats()
+            .build();
 
 
     /**

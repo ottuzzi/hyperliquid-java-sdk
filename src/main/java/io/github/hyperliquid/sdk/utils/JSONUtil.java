@@ -7,12 +7,12 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.*;
 import com.fasterxml.jackson.databind.type.MapType;
 import com.fasterxml.jackson.databind.type.TypeFactory;
+import lombok.Getter;
 
 import java.io.IOException;
 import java.util.List;
 
 public class JSONUtil {
-
     private static final ObjectMapper mapper = createSharedMapper();
 
     /**
@@ -37,10 +37,6 @@ public class JSONUtil {
         if (module != null) {
             mapper.registerModule(module);
         }
-    }
-
-    public static ObjectMapper getMapper() {
-        return mapper;
     }
 
     public static JsonNode readTree(String resp) throws JsonProcessingException {

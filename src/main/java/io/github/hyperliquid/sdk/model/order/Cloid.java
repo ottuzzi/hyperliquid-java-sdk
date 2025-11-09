@@ -3,6 +3,7 @@ package io.github.hyperliquid.sdk.model.order;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 import io.github.hyperliquid.sdk.utils.HypeError;
+import lombok.Getter;
 
 import java.math.BigInteger;
 
@@ -18,10 +19,15 @@ import java.math.BigInteger;
  * - from_str(cloid: str) 直接封装；
  * - to_raw() 返回原始字符串。
  */
+@Getter
 public class Cloid {
 
     /**
      * 原始 Cloid 字符串（0x + 32 hex chars）
+     * -- GETTER --
+     *  兼容旧接口：获取原始字符串。
+     *
+     * @return 原始字符串
      */
     private final String raw;
 
@@ -142,15 +148,6 @@ public class Cloid {
      */
     @JsonValue
     public String toRaw() {
-        return raw;
-    }
-
-    /**
-     * 兼容旧接口：获取原始字符串。
-     *
-     * @return 原始字符串
-     */
-    public String getRaw() {
         return raw;
     }
 

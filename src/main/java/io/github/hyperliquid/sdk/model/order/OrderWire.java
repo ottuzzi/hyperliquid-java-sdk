@@ -16,7 +16,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  * </p>
  */
 public class OrderWire {
-
     /**
      * 币种整数 ID
      */

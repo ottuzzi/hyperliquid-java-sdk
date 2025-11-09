@@ -139,7 +139,7 @@ public final class Signing {
         String szStr = floatToWire(req.getSz());
         String pxStr = req.getLimitPx() == null ? null : floatToWire(req.getLimitPx());
         Object orderTypeWire = orderTypeToWire(req.getOrderType());
-        return new OrderWire(coinId, req.getBuy(), szStr, pxStr, orderTypeWire, req.getReduceOnly(), req.getCloid());
+        return new OrderWire(coinId, req.getIsBuy(), szStr, pxStr, orderTypeWire, req.getReduceOnly(), req.getCloid());
     }
 
     /**

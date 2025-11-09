@@ -3,6 +3,7 @@ package io.github.hyperliquid.sdk.client;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.github.hyperliquid.sdk.utils.HypeError;
 import io.github.hyperliquid.sdk.utils.JSONUtil;
+import lombok.Getter;
 import okhttp3.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,7 @@ public class HypeHttpClient {
 
     private static final Logger log = LoggerFactory.getLogger(HypeHttpClient.class);
 
+    @Getter
     private final String baseUrl;
 
     private final OkHttpClient client;
@@ -70,10 +72,5 @@ public class HypeHttpClient {
             log.error("Network error for POST: {} Request: {}", path, json, e);
             throw new HypeError("Network error for POST " + path + ": " + e.getMessage(), e);
         }
-    }
-
-
-    public String getBaseUrl() {
-        return baseUrl;
     }
 }

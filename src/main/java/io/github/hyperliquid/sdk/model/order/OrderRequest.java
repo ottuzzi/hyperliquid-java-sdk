@@ -1,8 +1,11 @@
 package io.github.hyperliquid.sdk.model.order;
 
+import lombok.Data;
+
 /**
  * 下单请求结构。
  */
+@Data
 public class OrderRequest {
 
     /**
@@ -37,37 +40,5 @@ public class OrderRequest {
         this.orderType = orderType;
         this.reduceOnly = reduceOnly;
         this.cloid = cloid;
-    }
-
-    public String getCoin() {
-        return coin;
-    }
-
-    public Boolean getBuy() {
-        return isBuy;
-    }
-
-    public Double getSz() {
-        return sz;
-    }
-
-    public Double getLimitPx() {
-        return limitPx;
-    }
-
-    public OrderType getOrderType() {
-        return orderType;
-    }
-
-    public Boolean getReduceOnly() {
-        return reduceOnly;
-    }
-
-    public Cloid getCloid() {
-        return cloid;
-    }
-
-    public InstrumentType getInstrumentType() {
-        return instrumentType;
     }
 }

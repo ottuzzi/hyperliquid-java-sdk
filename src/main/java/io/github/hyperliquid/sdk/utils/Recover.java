@@ -17,7 +17,8 @@ import java.util.Map;
  */
 public final class Recover {
 
-    private Recover() {}
+    private Recover() {
+    }
 
     /**
      * 从 L1 动作签名中恢复签名者地址。

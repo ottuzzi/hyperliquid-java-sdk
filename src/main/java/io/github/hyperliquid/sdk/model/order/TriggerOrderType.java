@@ -1,10 +1,11 @@
 package io.github.hyperliquid.sdk.model.order;
 
+import lombok.Getter;
+
 /**
  * 触发单类型（止盈/止损/触发价与是否市价）。
  */
 public class TriggerOrderType {
-
     private final Double triggerPx;
     private final Boolean isMarket;
     private final TpslType tpsl;
@@ -12,6 +13,7 @@ public class TriggerOrderType {
     /**
      * 止盈/止损类型枚举
      */
+    @Getter
     public enum TpslType {
         TP("tp"), // 止盈
         SL("sl"); // 止损
@@ -20,10 +22,6 @@ public class TriggerOrderType {
 
         TpslType(String value) {
             this.value = value;
-        }
-
-        public String getValue() {
-            return value;
         }
 
         @Override

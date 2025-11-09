@@ -1,10 +1,12 @@
 package io.github.hyperliquid.sdk.model.order;
 
+import lombok.Data;
+
 /**
  * 限价单类型，支持 TIF 策略（Gtc/Alo/Ioc）。
  */
+@Data
 public class LimitOrderType {
-
     private final Tif tif;
 
     /**
@@ -15,9 +17,5 @@ public class LimitOrderType {
             throw new IllegalArgumentException("tif cannot be null");
         }
         this.tif = tif;
-    }
-
-    public Tif getTif() {
-        return tif;
     }
 }

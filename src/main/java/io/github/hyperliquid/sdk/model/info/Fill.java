@@ -4,6 +4,9 @@ import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonSetter;
+import lombok.Data;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -13,36 +16,65 @@ import java.util.Map;
  *
  * <p>说明：官方返回字段在不同接口与版本可能存在差异，同时为 SDK 使用者保留完整信息。</p>
  */
+@Data
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class Fill {
 
     /**
      * 成交时间戳（毫秒）
+     * -- GETTER --
+     *  获取时间戳（毫秒）
+     * -- SETTER --
+     *  设置时间戳（毫秒）
      */
     private Long time;
     /**
      * 币种 ID（perp/spot，若服务端返回为整数 ID）
+     * -- GETTER --
+     *  获取币种 ID（若返回为整数）
+     * -- SETTER --
+     *  设置币种 ID（仅当需要强制写入整数时使用）
      */
     private Integer coin;
     /**
      * 币种名称（若服务端返回为字符串名称，如 "AVAX"）
+     * -- GETTER --
+     *  获取币种名称（若返回为字符串时）
+     * -- SETTER --
+     *  设置币种名称（仅当需要强制写入字符串时使用）
      */
     private String coinName;
     /**
      * 买入为 true，卖出为 false
+     * -- GETTER --
+     *  是否买入
+     * -- SETTER --
+     *  设置是否买入
      */
     private Boolean isBuy;
     /**
      * 成交数量
+     * -- GETTER --
+     *  获取成交数量
+     * -- SETTER --
+     *  设置成交数量
      */
     private Double size;
     /**
      * 成交价格
+     * -- GETTER --
+     *  获取成交价格
+     * -- SETTER --
+     *  设置成交价格
      */
     private Double price;
 
     /**
      * 额外字段容器（用于兼容不同返回结构）
+     * -- GETTER --
+     *  获取额外字段映射
+     * -- SETTER --
+     *  设置额外字段映射
      */
     private Map<String, Object> extensions = new HashMap<>();
 
@@ -120,105 +152,5 @@ public class Fill {
     @JsonAnyGetter
     public Map<String, Object> any() {
         return extensions;
-    }
-
-    // Getter / Setter（含方法注释）
-
-    /**
-     * 获取时间戳（毫秒）
-     */
-    public Long getTime() {
-        return time;
-    }
-
-    /**
-     * 设置时间戳（毫秒）
-     */
-    public void setTime(Long time) {
-        this.time = time;
-    }
-
-    /**
-     * 获取币种 ID（若返回为整数）
-     */
-    public Integer getCoin() {
-        return coin;
-    }
-
-    /**
-     * 设置币种 ID（仅当需要强制写入整数时使用）
-     */
-    public void setCoin(Integer coin) {
-        this.coin = coin;
-    }
-
-    /**
-     * 获取币种名称（若返回为字符串时）
-     */
-    public String getCoinName() {
-        return coinName;
-    }
-
-    /**
-     * 设置币种名称（仅当需要强制写入字符串时使用）
-     */
-    public void setCoinName(String coinName) {
-        this.coinName = coinName;
-    }
-
-    /**
-     * 是否买入
-     */
-    public Boolean getIsBuy() {
-        return isBuy;
-    }
-
-    /**
-     * 设置是否买入
-     */
-    public void setIsBuy(Boolean buy) {
-        isBuy = buy;
-    }
-
-    /**
-     * 获取成交数量
-     */
-    public Double getSize() {
-        return size;
-    }
-
-    /**
-     * 设置成交数量
-     */
-    public void setSize(Double size) {
-        this.size = size;
-    }
-
-    /**
-     * 获取成交价格
-     */
-    public Double getPrice() {
-        return price;
-    }
-
-    /**
-     * 设置成交价格
-     */
-    public void setPrice(Double price) {
-        this.price = price;
-    }
-
-    /**
-     * 获取额外字段映射
-     */
-    public Map<String, Object> getExtensions() {
-        return extensions;
-    }
-
-    /**
-     * 设置额外字段映射
-     */
-    public void setExtensions(Map<String, Object> extensions) {
-        this.extensions = extensions;
     }
 }
