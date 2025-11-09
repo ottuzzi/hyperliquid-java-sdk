@@ -2,8 +2,10 @@ package io.github.hyperliquid.sdk.websocket;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import io.github.hyperliquid.sdk.utils.JSONUtil;
+import lombok.Getter;
 import okhttp3.*;
 import okio.ByteString;
+import org.jetbrains.annotations.NotNull;
 
 import java.io.IOException;
 import java.time.Duration;
@@ -16,6 +18,7 @@ import java.util.logging.Logger;
  * WebSocket 管理器。
  * 管理连接、订阅、心跳与消息分发。
  */
+@Getter
 public class WebsocketManager {
 
     /**
@@ -171,7 +174,7 @@ public class WebsocketManager {
         Request request = new Request.Builder().url(wsUrl).build();
         this.webSocket = client.newWebSocket(request, new WebSocketListener() {
             @Override
-            public void onOpen(WebSocket webSocket, Response response) {
+            public void onOpen(@NotNull WebSocket webSocket, @NotNull Response response) {
                 connected = true;
                 reconnecting = false;
                 reconnectAttempts = 0;
@@ -187,7 +190,7 @@ public class WebsocketManager {
             }
 
             @Override
-            public void onMessage(WebSocket webSocket, String text) {
+            public void onMessage(@NotNull WebSocket webSocket, @NotNull String text) {
                 try {
                     JsonNode msg = JSONUtil.readTree(text);
                     String identifier = wsMsgToIdentifier(msg);
@@ -208,26 +211,26 @@ public class WebsocketManager {
             }
 
             @Override
-            public void onMessage(WebSocket webSocket, ByteString bytes) {
+            public void onMessage(@NotNull WebSocket webSocket, @NotNull ByteString bytes) {
                 onMessage(webSocket, bytes.utf8());
             }
 
             @Override
-            public void onFailure(WebSocket webSocket, Throwable t, Response response) {
+            public void onFailure(@NotNull WebSocket webSocket, @NotNull Throwable t, Response response) {
                 connected = false;
-                notifyDisconnected(-1, t == null ? "failure" : String.valueOf(t), t);
+                notifyDisconnected(-1, String.valueOf(t), t);
                 if (!stopped) {
                     scheduleReconnect(t, null, null);
                 }
             }
 
             @Override
-            public void onClosing(WebSocket webSocket, int code, String reason) {
+            public void onClosing(@NotNull WebSocket webSocket, int code, @NotNull String reason) {
                 webSocket.close(code, reason);
             }
 
             @Override
-            public void onClosed(WebSocket webSocket, int code, String reason) {
+            public void onClosed(@NotNull WebSocket webSocket, int code, @NotNull String reason) {
                 connected = false;
                 notifyDisconnected(code, reason, null);
                 if (!stopped) {

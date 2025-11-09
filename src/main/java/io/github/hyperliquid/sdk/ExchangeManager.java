@@ -5,6 +5,7 @@ import io.github.hyperliquid.sdk.client.HypeHttpClient;
 import io.github.hyperliquid.sdk.client.InfoClient;
 import io.github.hyperliquid.sdk.utils.Constants;
 import io.github.hyperliquid.sdk.utils.HypeError;
+import lombok.Getter;
 import okhttp3.OkHttpClient;
 import org.web3j.crypto.Credentials;
 
@@ -22,7 +23,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public class ExchangeManager {
 
-
+    @Getter
     private final InfoClient infoClient;
 
     /**
@@ -40,13 +41,6 @@ public class ExchangeManager {
         this.infoClient = infoClient;
         this.exchangeMap = exchangeMap;
         this.privateKeyMap = privateKeyMap;
-    }
-
-    /**
-     * 获取 InfoClient 实例
-     **/
-    public InfoClient getInfoClient() {
-        return infoClient;
     }
 
     /**

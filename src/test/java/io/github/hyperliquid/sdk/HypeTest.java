@@ -1,4 +1,4 @@
-package io.github.hyperliquid;
+package io.github.hyperliquid.sdk;
 
 import io.github.hyperliquid.sdk.client.HypeHttpClient;
 import io.github.hyperliquid.sdk.client.InfoClient;
@@ -170,8 +170,7 @@ public class HypeTest {
     public void testNameToCoin() {
         setUp();
         Optional<String> coin = nameToCoin("BTC");
-        System.out.println(coin.get());
-
+        coin.ifPresent(System.out::println);
     }
 
     /**

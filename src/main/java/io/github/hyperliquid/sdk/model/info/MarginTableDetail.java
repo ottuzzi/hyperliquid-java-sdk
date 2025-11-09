@@ -1,9 +1,11 @@
 package io.github.hyperliquid.sdk.model.info;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
 
 import java.util.List;
 
+@Data
 public class MarginTableDetail {
     
     @JsonProperty("description")
@@ -12,23 +14,6 @@ public class MarginTableDetail {
     @JsonProperty("marginTiers")
     private List<MarginTier> marginTiers;
 
-    // 构造函数、Getter和Setter
     public MarginTableDetail() {
-    }
-
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
-    public List<MarginTier> getMarginTiers() {
-        return marginTiers;
-    }
-
-    public void setMarginTiers(List<MarginTier> marginTiers) {
-        this.marginTiers = marginTiers;
     }
 }

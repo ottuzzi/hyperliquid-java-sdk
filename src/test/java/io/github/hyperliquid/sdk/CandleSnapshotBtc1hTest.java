@@ -24,7 +24,7 @@ public class CandleSnapshotBtc1hTest {
      */
     @Test
     public void testCandleSnapshotBTC1H() {
-        List<Candle> candles = manager.getInfoClient().candleSnapshotByCount("BTC", CandleInterval.HOUR_1, 24);
+        List<Candle> candles = this.manager.getInfoClient().candleSnapshotByCount("BTC", CandleInterval.HOUR_1, 24);
         candles.forEach(System.out::println);
     }
 

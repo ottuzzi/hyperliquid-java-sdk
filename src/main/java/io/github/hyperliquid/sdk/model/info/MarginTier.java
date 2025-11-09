@@ -1,7 +1,11 @@
 package io.github.hyperliquid.sdk.model.info;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
+@Data
+@NoArgsConstructor
 public class MarginTier {
     
     @JsonProperty("lowerBound")
@@ -9,24 +13,4 @@ public class MarginTier {
 
     @JsonProperty("maxLeverage")
     private Integer maxLeverage;
-
-    // 构造函数、Getter和Setter
-    public MarginTier() {
-    }
-
-    public String getLowerBound() {
-        return lowerBound;
-    }
-
-    public void setLowerBound(String lowerBound) {
-        this.lowerBound = lowerBound;
-    }
-
-    public Integer getMaxLeverage() {
-        return maxLeverage;
-    }
-
-    public void setMaxLeverage(Integer maxLeverage) {
-        this.maxLeverage = maxLeverage;
-    }
 }

@@ -4,6 +4,8 @@ import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonInclude;
+import lombok.Getter;
+import lombok.Setter;
 
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -22,27 +24,19 @@ public class PerpDexStatus {
 
     /**
      * 总净充值/提现（字符串）
+     * -- GETTER --
+     *  获取总净充值/提现
+     * -- SETTER --
+     *  设置总净充值/提现
      */
+    @Setter
+    @Getter
     private String totalNetDeposit;
 
     /**
      * 其他未知/扩展字段
      */
     private Map<String, Object> extensions = new LinkedHashMap<>();
-
-    /**
-     * 获取总净充值/提现
-     */
-    public String getTotalNetDeposit() {
-        return totalNetDeposit;
-    }
-
-    /**
-     * 设置总净充值/提现
-     */
-    public void setTotalNetDeposit(String totalNetDeposit) {
-        this.totalNetDeposit = totalNetDeposit;
-    }
 
     /**
      * 获取扩展字段

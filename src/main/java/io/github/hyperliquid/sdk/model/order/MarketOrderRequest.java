@@ -4,8 +4,6 @@ package io.github.hyperliquid.sdk.model.order;
  * 市价下单请求结构。
  */
 public class MarketOrderRequest extends OrderRequest {
-
-
     /**
      * 构造下单请求。
      */
@@ -21,6 +19,4 @@ public class MarketOrderRequest extends OrderRequest {
     public MarketOrderRequest(InstrumentType instrumentType, String coin, Boolean isBuy, Double sz, Boolean reduceOnly, String cloid) {
         super(instrumentType, coin, isBuy, sz, 4000.0, new OrderType(new LimitOrderType(Tif.IOC)), reduceOnly, cloid != null ? Cloid.fromStr(cloid) : null);
     }
-
-
 }

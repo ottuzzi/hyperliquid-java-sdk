@@ -4,8 +4,6 @@ package io.github.hyperliquid.sdk.model.order;
  * 限价下单请求结构。
  */
 public class LimitOrderRequest extends OrderRequest {
-
-
     /**
      * 构造下单请求。
      *

@@ -10,6 +10,7 @@ import io.github.hyperliquid.sdk.utils.Constants;
 import io.github.hyperliquid.sdk.utils.HypeError;
 import io.github.hyperliquid.sdk.utils.JSONUtil;
 import io.github.hyperliquid.sdk.utils.Signing;
+import lombok.Setter;
 import org.web3j.crypto.Credentials;
 
 import java.util.ArrayList;
@@ -40,13 +41,15 @@ public class ExchangeClient {
     private final Function<String, Integer> nameToAssetFunction;
 
     /**
-     * 可选的 Vault 地址（用于签名）
+     * 以太坊地址（0x 前缀）
      */
+    @Setter
     private String vaultAddress;
 
     /**
-     * 可选的过期时间（毫秒），与 Python expiresAfter 保持一致
+     * 过期时间
      */
+    @Setter
     private Long expiresAfter;
 
     /**
@@ -61,24 +64,6 @@ public class ExchangeClient {
         this.hypeHttpClient = hypeHttpClient;
         this.wallet = wallet;
         this.nameToAssetFunction = nameToAssetFunction;
-    }
-
-    /**
-     * 设置 Vault 地址（用于签名）。
-     *
-     * @param vaultAddress 以太坊地址（0x 前缀）
-     */
-    public void setVaultAddress(String vaultAddress) {
-        this.vaultAddress = vaultAddress;
-    }
-
-    /**
-     * 设置过期时间（毫秒）。
-     *
-     * @param expiresAfter 毫秒值（null 表示不设置过期）
-     */
-    public void setExpiresAfter(Long expiresAfter) {
-        this.expiresAfter = expiresAfter;
     }
 
     /**
