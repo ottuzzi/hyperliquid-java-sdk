@@ -15,10 +15,15 @@ public class OrderRequest {
     private final String coin;
     private final Boolean isBuy;
     private final Double sz;
-    private final Double limitPx; // 可为 null（市价）或与触发单组合
+    private Double limitPx; // 可为 null（市价）或与触发单组合
     private final OrderType orderType; // 可为 null（普通限价/市价）
     private final Boolean reduceOnly;
     private final Cloid cloid; // 可为 null
+
+    /**
+     * 市价下单 滑点比例，例如 0.05 代表 5%
+     **/
+    private Double slippage = 0.05;
 
     /**
      * 构造下单请求。
@@ -41,4 +46,126 @@ public class OrderRequest {
         this.reduceOnly = reduceOnly;
         this.cloid = cloid;
     }
+
+    /**
+     * 创建限价单请求。
+     *
+     * @param instrumentType 交易品种类型
+     * @param coin           币种名称（如 "ETH"）
+     * @param isBuy          是否买入
+     * @param sz             数量
+     * @param limitPx        限价价格（可为 null）
+     * @param tif            TIF 策略（Gtc/Alo/Ioc）
+     * @param reduceOnly     是否只减仓
+     * @param cloid          客户端订单 ID
+     * @return 限价单请求对象
+     */
+    public static OrderRequest createLimitOrder(InstrumentType instrumentType, Tif tif, String coin, Boolean isBuy, Double sz, Double limitPx, Boolean reduceOnly, Cloid cloid) {
+        return new OrderRequest(instrumentType, coin, isBuy, sz, limitPx, new OrderType(new LimitOrderType(tif)), reduceOnly, cloid);
+    }
+
+    /**
+     * 创建默认永续合约限价单请求（非仅减仓，无客户端订单 ID）。
+     *
+     * @param coin    币种名称（如 "ETH"）
+     * @param isBuy   是否买入
+     * @param sz      数量
+     * @param limitPx 限价价格（可为 null）
+     * @param tif     TIF 策略（Gtc/Alo/Ioc）
+     * @return 永续合约限价单请求对象
+     */
+    public static OrderRequest createDefaultPerpLimitOrder(Tif tif, String coin, Boolean isBuy, Double sz, Double limitPx) {
+        return new OrderRequest(InstrumentType.PERP, coin, isBuy, sz, limitPx, new OrderType(new LimitOrderType(tif)), false, null);
+    }
+
+
+    /**
+     * 创建永续合约限价单请求。
+     *
+     * @param coin       币种名称（如 "ETH"）
+     * @param isBuy      是否买入
+     * @param sz         数量
+     * @param limitPx    限价价格（可为 null）
+     * @param tif        TIF 策略（Gtc/Alo/Ioc）
+     * @param reduceOnly 是否只减仓
+     * @param cloid      客户端订单 ID（可为 null）
+     * @return 永续合约限价单请求对象
+     */
+    public static OrderRequest createPerpLimitOrder(Tif tif, String coin, Boolean isBuy, Double sz, Double limitPx, Boolean reduceOnly, Cloid cloid) {
+        return new OrderRequest(InstrumentType.PERP, coin, isBuy, sz, limitPx, new OrderType(new LimitOrderType(tif)), reduceOnly, cloid);
+    }
+
+    /**
+     * 创建永续合约限价单请求（非仅减仓）。
+     *
+     * @param coin    币种名称（如 "ETH"）
+     * @param isBuy   是否买入
+     * @param sz      数量
+     * @param limitPx 限价价格（可为 null）
+     * @param tif     TIF 策略（Gtc/Alo/Ioc）
+     * @param cloid   客户端订单 ID
+     * @return 永续合约限价单请求对象
+     */
+    public static OrderRequest createPerpLimitOrder(Tif tif, String coin, Boolean isBuy, Double sz, Double limitPx, Long cloid) {
+        return new OrderRequest(InstrumentType.PERP, coin, isBuy, sz, limitPx, new OrderType(new LimitOrderType(tif)), false, Cloid.fromLong(cloid));
+    }
+
+    /**
+     * 创建默认永续合约市价单请求（IOC，非仅减仓，无客户端订单 ID）。
+     *
+     * @param coin  币种名称（如 "ETH"）
+     * @param isBuy 是否买入
+     * @param sz    数量
+     * @return 永续合约市价单请求对象
+     */
+    public static OrderRequest createDefaultPerpMarketOrder(String coin, Boolean isBuy, Double sz) {
+        return new OrderRequest(InstrumentType.PERP, coin, isBuy, sz, null, new OrderType(new LimitOrderType(Tif.IOC)), false, null);
+    }
+
+    /**
+     * 创建永续合约市价单请求。
+     *
+     * @param coin       币种名称（如 "ETH"）
+     * @param isBuy      是否买入
+     * @param sz         数量
+     * @param reduceOnly 是否只减仓
+     * @param cloid      客户端订单 ID（可为 null）
+     * @return 永续合约市价单请求对象
+     */
+    public static OrderRequest createPerpMarketOrder(String coin, Boolean isBuy, Double sz, Boolean reduceOnly, Cloid cloid) {
+        return new OrderRequest(InstrumentType.PERP, coin, isBuy, sz, null, new OrderType(new LimitOrderType(Tif.IOC)), reduceOnly, cloid);
+    }
+
+    /**
+     * 创建永续合约市价单请求（非仅减仓）。
+     *
+     * @param coin  币种名称（如 "ETH"）
+     * @param isBuy 是否买入
+     * @param sz    数量
+     * @param cloid 客户端订单 ID
+     * @return 永续合约市价单请求对象
+     */
+    public static OrderRequest createPerpMarketOrder(String coin, Boolean isBuy, Double sz, Long cloid) {
+        return new OrderRequest(InstrumentType.PERP, coin, isBuy, sz, null, new OrderType(new LimitOrderType(Tif.IOC)), false, Cloid.fromLong(cloid));
+    }
+
+
+    /**
+     * 创建永续合约触发单请求。
+     *
+     * @param coin       币种名称（如 "ETH"）
+     * @param isBuy      是否买入
+     * @param sz         数量
+     * @param limitPx    限价价格（可为 null）
+     * @param triggerPx  触发价格
+     * @param isMarket   是否市价单
+     * @param tpsl       止盈止损类型
+     * @param reduceOnly 是否只减仓
+     * @param cloid      客户端订单 ID（可为 null）
+     * @return 永续合约触发单请求对象
+     */
+    public static OrderRequest createPerpTriggerOrder(String coin, Boolean isBuy, Double sz, Double limitPx, Double triggerPx, Boolean isMarket, TriggerOrderType.TpslType tpsl, Boolean reduceOnly, Cloid cloid) {
+        return new OrderRequest(InstrumentType.PERP, coin, isBuy, sz, limitPx, new OrderType(new TriggerOrderType(triggerPx, isMarket, tpsl)), reduceOnly, cloid);
+    }
+
 }

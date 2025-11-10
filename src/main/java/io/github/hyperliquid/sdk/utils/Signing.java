@@ -112,18 +112,17 @@ public final class Signing {
         if (orderType == null)
             return null;
         Map<String, Object> out = new LinkedHashMap<>();
-        orderType.getLimit().ifPresent(limit -> {
+        if (orderType.getLimit() != null) {
             Map<String, Object> limitObj = new LinkedHashMap<>();
-            limitObj.put("tif", limit.getTif().getValue());
+            limitObj.put("tif", orderType.getLimit().getTif().getValue());
             out.put("limit", limitObj);
-        });
-        orderType.getTrigger().ifPresent(trigger -> {
+        } else if (orderType.getTrigger() != null) {
             Map<String, Object> trigObj = new LinkedHashMap<>();
-            trigObj.put("triggerPx", floatToWire(trigger.getTriggerPx()));
-            trigObj.put("isMarket", trigger.isMarket());
-            trigObj.put("tpsl", trigger.getTpsl());
+            trigObj.put("triggerPx", floatToWire(orderType.getTrigger().getTriggerPx()));
+            trigObj.put("isMarket", orderType.getTrigger().isMarket());
+            trigObj.put("tpsl", orderType.getTrigger().getTpsl());
             out.put("trigger", trigObj);
-        });
+        }
         return out.isEmpty() ? null : out;
     }
 

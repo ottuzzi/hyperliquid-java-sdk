@@ -7,6 +7,7 @@ import lombok.Data;
  */
 @Data
 public class LimitOrderType {
+
     private final Tif tif;
 
     /**
@@ -18,4 +19,5 @@ public class LimitOrderType {
         }
         this.tif = tif;
     }
+
 }

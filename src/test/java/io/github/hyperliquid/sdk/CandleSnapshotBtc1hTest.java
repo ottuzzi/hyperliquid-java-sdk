@@ -17,14 +17,14 @@ import java.util.List;
 public class CandleSnapshotBtc1hTest {
 
     // 初始化 ExchangeManager，用于与 HyperLiquid 交易所交互。
-    ExchangeManager manager = ExchangeManager.builder().build();
+    HyperliquidClient manager = HyperliquidClient.builder().build();
 
     /**
      * 测试：获取 BTC 最近 24 根 1 小时 K 线数据。
      */
     @Test
     public void testCandleSnapshotBTC1H() {
-        List<Candle> candles = this.manager.getInfoClient().candleSnapshotByCount("BTC", CandleInterval.HOUR_1, 24);
+        List<Candle> candles = this.manager.getInfo().candleSnapshotByCount("BTC", CandleInterval.HOUR_1, 24);
         candles.forEach(System.out::println);
     }
 

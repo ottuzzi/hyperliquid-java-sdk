@@ -1,11 +1,11 @@
 package io.github.hyperliquid.sdk;
 
-import io.github.hyperliquid.sdk.client.HypeHttpClient;
-import io.github.hyperliquid.sdk.client.InfoClient;
+import io.github.hyperliquid.sdk.apis.Info;
 import io.github.hyperliquid.sdk.model.info.Candle;
 import io.github.hyperliquid.sdk.model.info.CandleInterval;
 import io.github.hyperliquid.sdk.model.info.Meta;
 import io.github.hyperliquid.sdk.model.info.SpotMeta;
+import io.github.hyperliquid.sdk.utils.HypeHttpClient;
 import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -35,7 +35,7 @@ public class HypeTest {
     private static final ConcurrentHashMap<String, Integer> coinToAssetMap = new ConcurrentHashMap<>();
 
     // API客户端实例
-    private InfoClient infoClient;
+    private Info infoClient;
 
     // 基础URL - 使用Hyperliquid主网API
     private static final String BASE_URL = "https://api.hyperliquid.xyz";
@@ -63,7 +63,7 @@ public class HypeTest {
                     .build();
 
             HypeHttpClient hypeHttpClient = new HypeHttpClient(BASE_URL, okHttpClient);
-            infoClient = new InfoClient(BASE_URL, hypeHttpClient, true); // skipWs=true for testing
+            infoClient = new Info(BASE_URL, hypeHttpClient, true); // skipWs=true for testing
         } catch (Exception e) {
             throw new RuntimeException("Failed to initialize API client: " + e.getMessage(), e);
         }

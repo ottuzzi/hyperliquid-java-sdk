@@ -1,11 +1,10 @@
 package io.github.hyperliquid.sdk;
 
-import io.github.hyperliquid.sdk.client.ExchangeClient;
-import io.github.hyperliquid.sdk.client.HypeHttpClient;
-import io.github.hyperliquid.sdk.client.InfoClient;
+import io.github.hyperliquid.sdk.apis.Exchange;
+import io.github.hyperliquid.sdk.apis.Info;
 import io.github.hyperliquid.sdk.utils.Constants;
 import io.github.hyperliquid.sdk.utils.HypeError;
-import lombok.Getter;
+import io.github.hyperliquid.sdk.utils.HypeHttpClient;
 import okhttp3.OkHttpClient;
 import org.web3j.crypto.Credentials;
 
@@ -17,19 +16,20 @@ import java.util.concurrent.ConcurrentHashMap;
 
 
 /**
- * ExchangeManager 统一管理客户端，负责下单、撤单、转账等 L1/L2 操作。
+ * HyperliquidClient 统一管理客户端，负责下单、撤单、转账等 L1/L2 操作。
  * 支持多个钱包凭证的管理与切换。
- * 当前版本实现核心下单与批量下单，其他 L1 操作将在后续补充。
  */
-public class ExchangeManager {
-
-    @Getter
-    private final InfoClient infoClient;
+public class HyperliquidClient {
 
     /**
-     * K:私钥 V:ExchangeClient
+     * Info 客户端
      **/
-    private final Map<String, ExchangeClient> exchangeMap;
+    private final Info info;
+
+    /**
+     * K:私钥 V:Exchange
+     **/
+    private final Map<String, Exchange> exchangeMap;
 
     /**
      * K:私钥 V:地址
@@ -37,16 +37,20 @@ public class ExchangeManager {
     private final Map<String, String> privateKeyMap;
 
 
-    private ExchangeManager(InfoClient infoClient, Map<String, ExchangeClient> exchangeMap, Map<String, String> privateKeyMap) {
-        this.infoClient = infoClient;
+    private HyperliquidClient(Info info, Map<String, Exchange> exchangeMap, Map<String, String> privateKeyMap) {
+        this.info = info;
         this.exchangeMap = exchangeMap;
         this.privateKeyMap = privateKeyMap;
     }
 
+    public Info getInfo() {
+        return info;
+    }
+
     /**
-     * 获取单个ExchangeClient , 如果有多个则返回第一个
+     * 获取单个Exchange  , 如果有多个则返回第一个
      **/
-    public ExchangeClient getSingleExchangeClient() {
+    public Exchange getSingleExchange() {
         if (exchangeMap.isEmpty()) {
             throw new HypeError("No exchange instances available.");
         }
@@ -54,10 +58,10 @@ public class ExchangeManager {
     }
 
     /**
-     * 根据私钥获取 ExchangeClient 实例
+     * 根据私钥获取 Exchange 实例
      **/
-    public ExchangeClient useExchangeClient(String privateKey) {
-        ExchangeClient ex = exchangeMap.get(privateKey);
+    public Exchange useExchange(String privateKey) {
+        Exchange ex = exchangeMap.get(privateKey);
         if (ex == null) {
             throw new HypeError("No exchange instance found for the provided private key.");
         }
@@ -68,11 +72,10 @@ public class ExchangeManager {
      * 获取钱包地址
      **/
     public String getAddress(String privateKey) {
-        String address = privateKeyMap.get(privateKey);
-        if (address == null) {
-            throw new HypeError("No address found for the provided private key.");
-        }
-        return address;
+        return privateKeyMap.entrySet().stream()
+                .filter(entry -> entry.getKey().equalsIgnoreCase(privateKey))
+                .map(Map.Entry::getValue).findFirst()
+                .orElseThrow(() -> new HypeError("No address found for the provided private key."));
     }
 
     /**
@@ -151,20 +154,20 @@ public class ExchangeManager {
         }
 
 
-        public ExchangeManager build() {
+        public HyperliquidClient build() {
             OkHttpClient httpClient = getOkHttpClient();
             HypeHttpClient hypeHttpClient = new HypeHttpClient(baseUrl, httpClient);
-            InfoClient info = new InfoClient(baseUrl, hypeHttpClient, skipWs);
-            Map<String, ExchangeClient> exchangeMap = new ConcurrentHashMap<>();
+            Info info = new Info(baseUrl, hypeHttpClient, skipWs);
+            Map<String, Exchange> exchangeMap = new ConcurrentHashMap<>();
             Map<String, String> privateKeyMap = new ConcurrentHashMap<>();
             if (!privateKeys.isEmpty()) {
                 for (String key : privateKeys) {
                     Credentials credentials = Credentials.create(key);
                     privateKeyMap.put(key, credentials.getAddress());
-                    exchangeMap.put(key, new ExchangeClient(hypeHttpClient, credentials, info::nameToAsset));
+                    exchangeMap.put(key, new Exchange(hypeHttpClient, credentials, info));
                 }
             }
-            return new ExchangeManager(info, exchangeMap, privateKeyMap);
+            return new HyperliquidClient(info, exchangeMap, privateKeyMap);
         }
     }
 }

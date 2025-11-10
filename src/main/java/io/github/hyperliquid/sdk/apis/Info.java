@@ -1,4 +1,4 @@
-package io.github.hyperliquid.sdk.client;
+package io.github.hyperliquid.sdk.apis;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.type.TypeFactory;
@@ -6,6 +6,7 @@ import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.hyperliquid.sdk.model.info.*;
 import io.github.hyperliquid.sdk.utils.HypeError;
+import io.github.hyperliquid.sdk.utils.HypeHttpClient;
 import io.github.hyperliquid.sdk.utils.JSONUtil;
 import io.github.hyperliquid.sdk.websocket.WebsocketManager;
 
@@ -17,7 +18,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * Info 客户端，提供行情、订单簿、用户状态等查询。
  */
-public class InfoClient {
+public class Info {
 
     private final boolean skipWs;
 
@@ -25,7 +26,13 @@ public class InfoClient {
 
     private final HypeHttpClient hypeHttpClient;
 
-    private final Cache<String, Integer> nameToAssetCache = Caffeine.newBuilder()
+//    private final Cache<String, Integer> nameToAssetCache = Caffeine.newBuilder()
+//            .maximumSize(1000)
+//            .expireAfterWrite(10, TimeUnit.MINUTES)
+//            .recordStats()
+//            .build();
+
+    private final Cache<String, Meta> metaCache = Caffeine.newBuilder()
             .maximumSize(1000)
             .expireAfterWrite(10, TimeUnit.MINUTES)
             .recordStats()
@@ -39,7 +46,7 @@ public class InfoClient {
      * @param hypeHttpClient HTTP客户端实例
      * @param skipWs         是否跳过创建 WebSocket 连接（用于测试）
      */
-    public InfoClient(String baseUrl, HypeHttpClient hypeHttpClient, boolean skipWs) {
+    public Info(String baseUrl, HypeHttpClient hypeHttpClient, boolean skipWs) {
         this.hypeHttpClient = hypeHttpClient;
         this.skipWs = skipWs;
         if (!skipWs) {
@@ -49,17 +56,14 @@ public class InfoClient {
 
     public Integer nameToAsset(String coinName) {
         String normalizedName = coinName.trim().toUpperCase();
-        return nameToAssetCache.get(normalizedName.toUpperCase(), key -> {
-            Meta meta = meta();
-            List<Meta.Universe> universe = meta.getUniverse();
-            for (int assetId = 0; assetId < universe.size(); assetId++) {
-                Meta.Universe u = universe.get(assetId);
-                if (u.getName().equalsIgnoreCase(key)) {
-                    return assetId;
-                }
+        List<Meta.Universe> universe = loadMetaCache().getUniverse();
+        for (int assetId = 0; assetId < universe.size(); assetId++) {
+            Meta.Universe u = universe.get(assetId);
+            if (u.getName().equalsIgnoreCase(normalizedName)) {
+                return assetId;
             }
-            throw new HypeError("Unknown currency name:" + normalizedName);
-        });
+        }
+        throw new HypeError("Unknown currency name:" + normalizedName);
     }
 
 
@@ -93,6 +97,22 @@ public class InfoClient {
      */
     public Meta meta() {
         return meta(null);
+    }
+
+    public Meta loadMetaCache() {
+        return metaCache.get("meta", key -> meta());
+    }
+
+
+    public Meta.Universe getMetaUniverse(String coinName) {
+        Meta meta = loadMetaCache();
+        List<Meta.Universe> universe = meta.getUniverse();
+        for (Meta.Universe u : universe) {
+            if (u.getName().equalsIgnoreCase(coinName)) {
+                return u;
+            }
+        }
+        throw new HypeError("Unknown currency name:" + coinName);
     }
 
     public Meta meta(String dex) {

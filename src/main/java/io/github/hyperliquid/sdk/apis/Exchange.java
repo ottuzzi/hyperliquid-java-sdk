@@ -1,29 +1,26 @@
-package io.github.hyperliquid.sdk.client;
+package io.github.hyperliquid.sdk.apis;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.github.hyperliquid.sdk.model.info.Meta;
 import io.github.hyperliquid.sdk.model.info.UpdateLeverage;
-import io.github.hyperliquid.sdk.model.order.Cloid;
-import io.github.hyperliquid.sdk.model.order.Order;
-import io.github.hyperliquid.sdk.model.order.OrderRequest;
-import io.github.hyperliquid.sdk.model.order.OrderWire;
-import io.github.hyperliquid.sdk.utils.Constants;
-import io.github.hyperliquid.sdk.utils.HypeError;
-import io.github.hyperliquid.sdk.utils.JSONUtil;
-import io.github.hyperliquid.sdk.utils.Signing;
+import io.github.hyperliquid.sdk.model.order.*;
+import io.github.hyperliquid.sdk.utils.*;
 import lombok.Setter;
 import org.web3j.crypto.Credentials;
 
+import java.math.BigDecimal;
+import java.math.MathContext;
+import java.math.RoundingMode;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.function.Function;
 
 /**
  * ExchangeClient 客户端，负责下单、撤单、转账等 L1/L2 操作。
  * 当前版本实现核心下单与批量下单，其他 L1 操作将在后续补充。
  */
-public class ExchangeClient {
+public class Exchange {
 
     /**
      * 用户钱包凭证（包含私钥与地址）
@@ -35,10 +32,12 @@ public class ExchangeClient {
      */
     private final HypeHttpClient hypeHttpClient;
 
+
     /**
-     * 名称到资产 ID 的映射函数（通常来自 InfoClient 的 nameToAsset）
+     * Info 客户端实例
      */
-    private final Function<String, Integer> nameToAssetFunction;
+    private final Info info;
+
 
     /**
      * 以太坊地址（0x 前缀）
@@ -53,17 +52,17 @@ public class ExchangeClient {
     private Long expiresAfter;
 
     /**
-     * 构造 ExchangeClient 客户端。
+     * 构造 Exchange 客户端。
      *
-     * @param hypeHttpClient      HTTP 客户端实例
-     * @param wallet              用户钱包凭证
-     * @param nameToAssetFunction 名称到资产 ID 的映射函数
+     * @param hypeHttpClient HTTP 客户端实例
+     * @param wallet         用户钱包凭证
+     * @param info           Info 客户端实例
      */
-    public ExchangeClient(HypeHttpClient hypeHttpClient, Credentials wallet,
-                          Function<String, Integer> nameToAssetFunction) {
+    public Exchange(HypeHttpClient hypeHttpClient, Credentials wallet, Info info) {
         this.hypeHttpClient = hypeHttpClient;
         this.wallet = wallet;
-        this.nameToAssetFunction = nameToAssetFunction;
+        this.info = info;
+
     }
 
     /**
@@ -98,11 +97,14 @@ public class ExchangeClient {
      * @return 交易接口响应 JSON
      */
     public Order order(OrderRequest req, Map<String, Object> builder) {
+        //市价下单转换
+        marketOpenTransition(req);
         int assetId = ensureAssetId(req.getCoin());
         OrderWire wire = Signing.orderRequestToOrderWire(assetId, req);
         Map<String, Object> action = buildOrderAction(List.of(wire), builder);
         return JSONUtil.convertValue(postAction(action), Order.class);
     }
+
 
     /**
      * 单笔下单（普通下单场景）
@@ -291,11 +293,67 @@ public class ExchangeClient {
      * @throws HypeError 当无法映射时抛出
      */
     private int ensureAssetId(String coinName) {
-        Integer assetId = nameToAssetFunction.apply(coinName);
+        Integer assetId = info.nameToAsset(coinName);
         if (assetId == null) {
             throw new HypeError("Unknown coin name: " + coinName);
         }
         return assetId;
+    }
+
+    private void marketOpenTransition(OrderRequest req) {
+        if (req.getLimitPx() == null && req.getOrderType().getLimit() != null &&
+                req.getOrderType().getLimit().getTif() == Tif.IOC) {
+            double slipPx = computeSlippagePrice(req.getCoin(), req.getIsBuy(), req.getSlippage());
+            req.setLimitPx(slipPx);
+        }
+    }
+
+    /**
+     * 计算带滑点的价格，并进行与 Python SDK 一致的精度处理。
+     * 规则：
+     * - 若未指定 px，则从 allMids 获取中间价；
+     * - 根据 isBuy 调整为进取价：buy 使用 (1+slippage)，sell 使用 (1-slippage)；
+     * - 使用 5 位有效数字进行初步四舍五入；
+     * - 对于永续（perp）价格，最终按 (6 - szDecimals) 小数位进行四舍五入（与 Python 一致）。
+     * 注意：当前实现默认针对永续（perp）资产。Spot 的 (8 - szDecimals) 规则可在后续扩展。
+     *
+     * @param coin     币种名称，例如 "ETH"
+     * @param isBuy    是否买入（用于确定滑点方向）
+     * @param slippage 滑点比例，例如 0.05 代表 5%
+     * @return 处理后的价格（double）
+     */
+    public double computeSlippagePrice(String coin, boolean isBuy, double slippage) {
+        double basePx;
+        Map<String, String> mids = info.allMids();
+        String midStr = mids.get(coin);
+        if (midStr == null) {
+            throw new HypeError("Failed to get mid price for coin " + coin + " (allMids returned empty or does not contain the coin)");
+        }
+        try {
+            basePx = Double.parseDouble(midStr);
+        } catch (NumberFormatException e) {
+            throw new HypeError("Mid price format exception: " + midStr, e);
+        }
+
+        double adjusted = basePx * (isBuy ? (1.0 + slippage) : (1.0 - slippage));
+
+        // 5 位有效数字处理
+        BigDecimal bd = BigDecimal.valueOf(adjusted);
+        bd = bd.round(new MathContext(5, RoundingMode.HALF_UP));
+
+        // 根据 perp 的精度规则进一步四舍五入：decimals = 6 - szDecimals
+        Meta.Universe metaUniverse = info.getMetaUniverse(coin);
+        Integer szDecimals = metaUniverse.getSzDecimals();
+        if (szDecimals == null) {
+            throw new HypeError("Failed to get szDecimals from Meta.Universe, coin: " + coin);
+        }
+        int decimals = 6 - szDecimals;
+        if (decimals < 0) {
+            // 防御：避免出现负小数位导致异常，直接不再缩放
+            decimals = 0;
+        }
+        bd = bd.setScale(decimals, RoundingMode.HALF_UP);
+        return bd.doubleValue();
     }
 
     /**

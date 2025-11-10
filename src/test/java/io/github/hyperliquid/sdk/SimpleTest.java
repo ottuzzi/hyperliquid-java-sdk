@@ -4,15 +4,15 @@ import io.github.hyperliquid.sdk.model.info.ClearinghouseState;
 import io.github.hyperliquid.sdk.model.info.UpdateLeverage;
 import org.junit.jupiter.api.Test;
 
- 
+
 public class SimpleTest {
 
     String privateKey = "your_private_key_here";
-    ExchangeManager manager = ExchangeManager.builder().addPrivateKey(privateKey).enableDebugLogs().build();
+    HyperliquidClient manager = HyperliquidClient.builder().addPrivateKey(privateKey).enableDebugLogs().build();
 
     @Test
     public void updateLeverage() {
-        UpdateLeverage leverage = manager.getSingleExchangeClient().updateLeverage("BTC", true, 10);
+        UpdateLeverage leverage = manager.getSingleExchange().updateLeverage("BTC", true, 10);
         System.out.println(leverage);
 
         /*return to the result:
@@ -25,7 +25,7 @@ public class SimpleTest {
 
     @Test
     public void clearinghouseState() {
-        ClearinghouseState clearinghouseState = manager.getInfoClient().clearinghouseState(manager.getSingleAddress());
+        ClearinghouseState clearinghouseState = manager.getInfo().clearinghouseState(manager.getSingleAddress());
         System.out.println(clearinghouseState);
     }
 }

@@ -1,8 +1,6 @@
-package io.github.hyperliquid.sdk.client;
+package io.github.hyperliquid.sdk.utils;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import io.github.hyperliquid.sdk.utils.HypeError;
-import io.github.hyperliquid.sdk.utils.JSONUtil;
 import lombok.Getter;
 import okhttp3.*;
 import org.slf4j.Logger;

@@ -72,8 +72,8 @@ This README focuses on ExchangeManager-related examples.
 ### Quick Start
 
 ```java
-import io.github.hyperliquid.sdk.ExchangeManager;
-import io.github.hyperliquid.sdk.client.ExchangeClient;
+import io.github.hyperliquid.sdk.HyperliquidClient;
+import io.github.hyperliquid.sdk.apis.Exchange;
 import io.github.hyperliquid.sdk.model.order.*;
 import io.github.hyperliquid.sdk.utils.Constants;
 
@@ -96,7 +96,7 @@ public class QuickExchangeManagerDemo {
 
         // Build ExchangeManager: set testnet URL, request timeout, skip WebSocket, add private key
         // Use a placeholder key if empty to avoid real orders
-        ExchangeManager manager = ExchangeManager.builder()
+        HyperliquidClient manager = HyperliquidClient.builder()
                 .baseUrl(Constants.TESTNET_API_URL)
                 .timeout(10)           // Request timeout (seconds), example value 10
                 .skipWs(true)          // Skip WebSocket (not needed for this demo)
@@ -110,7 +110,7 @@ public class QuickExchangeManagerDemo {
 
         // If a real private key is provided, place a sample limit order
         if (pk != null && !pk.isBlank()) {
-            ExchangeClient ex = manager.getSingleExchange();
+            Exchange ex = manager.getSingleExchange();
 
             // Order type: Limit, time-in-force GTC (Good-Till-Cancelled)
             OrderType type = new OrderType(new LimitOrderType("Gtc"), null);

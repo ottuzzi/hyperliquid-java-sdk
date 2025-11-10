@@ -1,11 +1,10 @@
 package io.github.hyperliquid.sdk.model.order;
 
-import java.util.Optional;
-
 /**
  * 订单类型封装（可选限价单与可选触发单组合）。
  */
 public class OrderType {
+
     private final LimitOrderType limit;
     private final TriggerOrderType trigger;
 
@@ -60,8 +59,8 @@ public class OrderType {
      *
      * @return Optional 包装的限价单类型
      */
-    public Optional<LimitOrderType> getLimit() {
-        return Optional.ofNullable(limit);
+    public LimitOrderType getLimit() {
+        return limit;
     }
 
     /**
@@ -69,8 +68,8 @@ public class OrderType {
      *
      * @return Optional 包装的触发单类型
      */
-    public Optional<TriggerOrderType> getTrigger() {
-        return Optional.ofNullable(trigger);
+    public TriggerOrderType getTrigger() {
+        return trigger;
     }
 }
 

@@ -71,8 +71,8 @@ mvn -q dependency:copy-dependencies
 ### 快速开始
 
 ```java
-import io.github.hyperliquid.sdk.ExchangeManager;
-import io.github.hyperliquid.sdk.client.ExchangeClient;
+import io.github.hyperliquid.sdk.HyperliquidClient;
+import io.github.hyperliquid.sdk.apis.Exchange;
 import io.github.hyperliquid.sdk.model.order.*;
 import io.github.hyperliquid.sdk.utils.Constants;
 
@@ -93,7 +93,7 @@ public class QuickExchangeManagerDemoCN {
         String pk = System.getenv("HL_PK");
 
         // 构建 ExchangeManager：设置测试网地址、请求超时、跳过 WebSocket、添加私钥（若为空则使用占位私钥避免真实下单）
-        ExchangeManager manager = ExchangeManager.builder()
+        HyperliquidClient manager = HyperliquidClient.builder()
                 .baseUrl(Constants.TESTNET_API_URL)
                 .timeout(10)           // 请求超时（秒），示例值为 10
                 .skipWs(true)          // 跳过 WebSocket（示例场景无需订阅）
@@ -107,7 +107,7 @@ public class QuickExchangeManagerDemoCN {
 
         // 若存在真实私钥，演示一次限价下单
         if (pk != null && !pk.isBlank()) {
-            ExchangeClient ex = manager.getSingleExchange();
+            Exchange ex = manager.getSingleExchange();
 
             // 订单类型：限价、有效期 GTC（Good-Till-Cancelled）
             OrderType type = new OrderType(new LimitOrderType("Gtc"), null);

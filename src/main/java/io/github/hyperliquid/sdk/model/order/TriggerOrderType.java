@@ -15,8 +15,8 @@ public class TriggerOrderType {
      */
     @Getter
     public enum TpslType {
-        TP("tp"), // 止盈
-        SL("sl"); // 止损
+        TP("tp"), // 止盈/上穿触发
+        SL("sl"); // 止损/下穿触发
 
         private final String value;
 

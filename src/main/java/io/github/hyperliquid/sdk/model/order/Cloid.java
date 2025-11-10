@@ -25,9 +25,7 @@ public class Cloid {
     /**
      * 原始 Cloid 字符串（0x + 32 hex chars）
      * -- GETTER --
-     *  兼容旧接口：获取原始字符串。
-     *
-     * @return 原始字符串
+     * 兼容旧接口：获取原始字符串。
      */
     private final String raw;
 
