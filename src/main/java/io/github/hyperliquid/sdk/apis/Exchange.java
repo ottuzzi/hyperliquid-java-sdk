@@ -73,6 +73,12 @@ public class Exchange {
 
     }
 
+    /**
+     * 计划撤单（scheduleCancel）。
+     *
+     * @param timeMs 指定撤单执行的毫秒时间戳；null 表示立即执行
+     * @return JSON 响应
+     */
     public JsonNode scheduleCancel(Long timeMs) {
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "scheduleCancel");
@@ -426,6 +432,12 @@ public class Exchange {
         return postActionWithSignature(action, signature, nonce);
     }
 
+    /**
+     * 创建子账户。
+     *
+     * @param name 子账户名称
+     * @return JSON 响应
+     */
     public JsonNode createSubAccount(String name) {
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "createSubAccount");
@@ -433,6 +445,14 @@ public class Exchange {
         return postAction(action);
     }
 
+    /**
+     * 子账户资金划转。
+     *
+     * @param subAccountUser 子账户地址（0x 前缀）
+     * @param isDeposit      true 表示存入；false 表示取出
+     * @param usd            金额（微 USDC 单位）
+     * @return JSON 响应
+     */
     public JsonNode subAccountTransfer(String subAccountUser, boolean isDeposit, long usd) {
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "subAccountTransfer");
@@ -442,6 +462,13 @@ public class Exchange {
         return postAction(action);
     }
 
+    /**
+     * USD 余额转账（用户签名）。
+     *
+     * @param amount      金额（USD，内部转换为微单位字符串）
+     * @param destination 目标地址（0x 前缀）
+     * @return JSON 响应
+     */
     public JsonNode usdTransfer(double amount, String destination) {
         long time = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
@@ -465,6 +492,14 @@ public class Exchange {
         return postActionWithSignature(action, signature, time);
     }
 
+    /**
+     * 现货 Token 转账（用户签名）。
+     *
+     * @param amount      转账数量
+     * @param destination 目标地址（0x 前缀）
+     * @param token       Token 名称（如 "HL"）
+     * @return JSON 响应
+     */
     public JsonNode spotTransfer(double amount, String destination, String token) {
         long time = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
@@ -490,6 +525,13 @@ public class Exchange {
         return postActionWithSignature(action, signature, time);
     }
 
+    /**
+     * 从桥合约提现（withdraw3，用户签名）。
+     *
+     * @param amount      金额（字符串）
+     * @param destination 目标地址（0x 前缀）
+     * @return JSON 响应
+     */
     public JsonNode withdrawFromBridge(double amount, String destination) {
         long time = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
@@ -513,6 +555,13 @@ public class Exchange {
         return postActionWithSignature(action, signature, time);
     }
 
+    /**
+     * USD 类目转移（Spot ⇄ Perp）。
+     *
+     * @param toPerp true 表示从 Spot 转至 Perp；false 表示从 Perp 转至 Spot
+     * @param amount 金额（USD，内部按微单位转换）
+     * @return JSON 响应
+     */
     public JsonNode usdClassTransfer(boolean toPerp, double amount) {
         long nonce = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
@@ -536,8 +585,19 @@ public class Exchange {
         return postActionWithSignature(action, signature, nonce);
     }
 
+    /**
+     * 资产跨 DEX 发送（sendAsset，用户签名）。
+     *
+     * @param destination    目标地址（0x 前缀）
+     * @param sourceDex      源 DEX 名称
+     * @param destinationDex 目标 DEX 名称
+     * @param token          Token 名称
+     * @param amount         数量（字符串）
+     * @param fromSubAccount 源子账户地址（可选）
+     * @return JSON 响应
+     */
     public JsonNode sendAsset(String destination, String sourceDex, String destinationDex, String token, String amount,
-            String fromSubAccount) {
+                              String fromSubAccount) {
         long nonce = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "sendAsset");
@@ -568,6 +628,13 @@ public class Exchange {
         return postActionWithSignature(action, signature, nonce);
     }
 
+    /**
+     * 授权 Builder 费用率（用户签名）。
+     *
+     * @param builder    Builder 地址（0x 前缀）
+     * @param maxFeeRate 允许的最大费用率（字符串小数）
+     * @return JSON 响应
+     */
     public JsonNode approveBuilderFee(String builder, String maxFeeRate) {
         long nonce = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
@@ -591,6 +658,12 @@ public class Exchange {
         return postActionWithSignature(action, signature, nonce);
     }
 
+    /**
+     * 绑定推荐码（用户签名）。
+     *
+     * @param code 推荐码字符串
+     * @return JSON 响应
+     */
     public JsonNode setReferrer(String code) {
         long nonce = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
@@ -612,6 +685,14 @@ public class Exchange {
         return postActionWithSignature(action, signature, nonce);
     }
 
+    /**
+     * Token 委托/取消委托（用户签名）。
+     *
+     * @param validator    验证者地址（0x 前缀）
+     * @param wei          委托数量（Wei 单位）
+     * @param isUndelegate true 表示取消委托；false 表示委托
+     * @return JSON 响应
+     */
     public JsonNode tokenDelegate(String validator, long wei, boolean isUndelegate) {
         long nonce = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
@@ -637,6 +718,12 @@ public class Exchange {
         return postActionWithSignature(action, signature, nonce);
     }
 
+    /**
+     * 转换为多签用户（用户签名）。
+     *
+     * @param signersJson 签名者配置 JSON 字符串
+     * @return JSON 响应
+     */
     public JsonNode convertToMultiSigUser(String signersJson) {
         long nonce = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
@@ -679,7 +766,7 @@ public class Exchange {
      * SpotDeploy: 注册 Token（registerToken2）
      */
     public JsonNode spotDeployRegisterToken(String tokenName, int szDecimals, int weiDecimals, int maxGas,
-            String fullName) {
+                                            String fullName) {
         Map<String, Object> action = new LinkedHashMap<>();
         Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("name", tokenName);
@@ -698,6 +785,14 @@ public class Exchange {
      * SpotDeploy: 用户创世分配（userGenesis）
      * userAndWei: [ [user,addressLower], [wei,string] ] 形式的二元列表
      * existingTokenAndWei: [ [tokenId,int], [wei,string] ] 形式的二元列表
+     */
+    /**
+     * SpotDeploy: 用户创世分配（userGenesis）。
+     *
+     * @param token               Token ID
+     * @param userAndWei          用户与 Wei 金额列表，形如 [[user,addressLower],[wei,string]]
+     * @param existingTokenAndWei 既有 Token 与 Wei 金额列表，形如 [[tokenId,int],[wei,string]]
+     * @return JSON 响应
      */
     public JsonNode spotDeployUserGenesis(int token, List<String[]> userAndWei, List<Object[]> existingTokenAndWei) {
         List<List<Object>> userAndWeiWire = new ArrayList<>();
@@ -736,6 +831,12 @@ public class Exchange {
     /**
      * SpotDeploy: 启用冻结权限
      */
+    /**
+     * SpotDeploy: 启用冻结权限。
+     *
+     * @param token Token ID
+     * @return JSON 响应
+     */
     public JsonNode spotDeployEnableFreezePrivilege(int token) {
         return spotDeployTokenActionInner("enableFreezePrivilege", token);
     }
@@ -743,12 +844,26 @@ public class Exchange {
     /**
      * SpotDeploy: 撤销冻结权限
      */
+    /**
+     * SpotDeploy: 撤销冻结权限。
+     *
+     * @param token Token ID
+     * @return JSON 响应
+     */
     public JsonNode spotDeployRevokeFreezePrivilege(int token) {
         return spotDeployTokenActionInner("revokeFreezePrivilege", token);
     }
 
     /**
      * SpotDeploy: 冻结/解冻用户
+     */
+    /**
+     * SpotDeploy: 冻结/解冻用户。
+     *
+     * @param token  Token ID
+     * @param user   用户地址（0x 前缀）
+     * @param freeze true 为冻结；false 为解冻
+     * @return JSON 响应
      */
     public JsonNode spotDeployFreezeUser(int token, String user, boolean freeze) {
         Map<String, Object> freezeUser = new LinkedHashMap<>();
@@ -763,6 +878,12 @@ public class Exchange {
 
     /**
      * SpotDeploy: 启用报价 Token
+     */
+    /**
+     * SpotDeploy: 启用报价 Token。
+     *
+     * @param token Token ID
+     * @return JSON 响应
      */
     public JsonNode spotDeployEnableQuoteToken(int token) {
         return spotDeployTokenActionInner("enableQuoteToken", token);
@@ -783,6 +904,14 @@ public class Exchange {
     /**
      * SpotDeploy: 创世（genesis）
      */
+    /**
+     * SpotDeploy: 创世（genesis）。
+     *
+     * @param token            Token ID
+     * @param maxSupply        最大供应量（字符串）
+     * @param noHyperliquidity 是否不启用 Hyperliquidity
+     * @return JSON 响应
+     */
     public JsonNode spotDeployGenesis(int token, String maxSupply, boolean noHyperliquidity) {
         Map<String, Object> genesis = new LinkedHashMap<>();
         genesis.put("token", token);
@@ -799,6 +928,13 @@ public class Exchange {
     /**
      * SpotDeploy: 注册现货交易对（registerSpot）
      */
+    /**
+     * SpotDeploy: 注册现货交易对（registerSpot）。
+     *
+     * @param baseToken  基础 Token ID
+     * @param quoteToken 报价 Token ID
+     * @return JSON 响应
+     */
     public JsonNode spotDeployRegisterSpot(int baseToken, int quoteToken) {
         Map<String, Object> register = new LinkedHashMap<>();
         List<Integer> tokens = new ArrayList<>();
@@ -812,10 +948,20 @@ public class Exchange {
     }
 
     /**
-     * SpotDeploy: 注册 Hyperliquidity 做市
+     * SpotDeploy: 注册       uidity 做市
+     */
+    /**
+     * SpotDeploy: 注册 Hyperliquidity 做市。
+     *
+     * @param spot          现货交易对 ID
+     * @param startPx       起始价格
+     * @param orderSz       每档订单数量
+     * @param nOrders       订单档数
+     * @param nSeededLevels 预置档位数（可选）
+     * @return JSON 响应
      */
     public JsonNode spotDeployRegisterHyperliquidity(int spot, double startPx, double orderSz, int nOrders,
-            Integer nSeededLevels) {
+                                                     Integer nSeededLevels) {
         Map<String, Object> register = new LinkedHashMap<>();
         register.put("spot", spot);
         register.put("startPx", String.valueOf(startPx));
@@ -832,6 +978,13 @@ public class Exchange {
 
     /**
      * SpotDeploy: 设置部署者交易费分成
+     */
+    /**
+     * SpotDeploy: 设置部署者交易费分成。
+     *
+     * @param token Token ID
+     * @param share 分成比例（字符串小数）
+     * @return JSON 响应
      */
     public JsonNode spotDeploySetDeployerTradingFeeShare(int token, String share) {
         Map<String, Object> setShare = new LinkedHashMap<>();
@@ -933,8 +1086,6 @@ public class Exchange {
                 nonce,
                 effectiveExpiresAfter,
                 isMainnet());
-
-        
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("action", action);

@@ -47,6 +47,13 @@ public class Info {
         }
     }
 
+    /**
+     * 将币种名称映射为资产 ID（根据 meta.universe）。
+     *
+     * @param coinName 币种名称（大小写不敏感）
+     * @return 资产 ID（从 0 开始）
+     * @throws HypeError 当名称无法映射时抛出
+     */
     public Integer nameToAsset(String coinName) {
         String normalizedName = coinName.trim().toUpperCase();
         List<Meta.Universe> universe = loadMetaCache().getUniverse();
@@ -59,6 +66,12 @@ public class Info {
         throw new HypeError("Unknown currency name:" + normalizedName);
     }
 
+    /**
+     * 发送 /info 请求的内部封装。
+     *
+     * @param payload 请求体对象（Map 或 POJO）
+     * @return JSON 响应
+     */
     public JsonNode postInfo(Object payload) {
         return hypeHttpClient.post("/info", payload);
     }
@@ -80,21 +93,41 @@ public class Info {
                 TypeFactory.defaultInstance().constructMapType(Map.class, String.class, String.class));
     }
 
+    /**
+     * 查询所有中间价（allMids）。
+     *
+     * @return 币种到中间价的映射
+     */
     public Map<String, String> allMids() {
         return allMids(null);
     }
 
+
     /**
      * 查询 perp 元数据（meta）。
+     *
+     * @return 类型化元数据对象 Meta
      */
     public Meta meta() {
         return meta(null);
     }
 
+    /**
+     * 获取/刷新本地缓存的 meta。
+     *
+     * @return 缓存中的 Meta
+     */
     public Meta loadMetaCache() {
         return metaCache.get("meta", key -> meta());
     }
 
+    /**
+     * 根据币种名称获取 meta 中的 universe 元素。
+     *
+     * @param coinName 币种名称
+     * @return 对应的 Universe 元素
+     * @throws HypeError 当名称不存在时抛出
+     */
     public Meta.Universe getMetaUniverse(String coinName) {
         Meta meta = loadMetaCache();
         List<Meta.Universe> universe = meta.getUniverse();
@@ -106,6 +139,12 @@ public class Info {
         throw new HypeError("Unknown currency name:" + coinName);
     }
 
+    /**
+     * 查询 perp 元数据（可指定 dex）。
+     *
+     * @param dex perp dex 名称（可为空）
+     * @return 类型化元数据对象 Meta
+     */
     public Meta meta(String dex) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "meta");
@@ -123,13 +162,21 @@ public class Info {
         return postInfo(payload);
     }
 
+    /**
+     * 获取 perp 元数据与资产上下文（类型化返回）。
+     *
+     * @return 类型化模型 MetaAndAssetCtxs
+     */
     public MetaAndAssetCtxs metaAndAssetCtxsTyped() {
         JsonNode node = metaAndAssetCtxs();
         return JSONUtil.convertValue(node, MetaAndAssetCtxs.class);
     }
 
+
     /**
-     * 查询 spot 元数据（spotMeta）。
+     * 查询现货元数据（spotMeta）。
+     *
+     * @return 类型化模型 SpotMeta
      */
     public SpotMeta spotMeta() {
         Map<String, Object> payload = Map.of("type", "spotMeta");
@@ -137,23 +184,24 @@ public class Info {
     }
 
     /**
-     * 查询 spot 元数据与资产上下文（spotMetaAndAssetCtxs）。
+     * 查询现货元数据与资产上下文（spotMetaAndAssetCtxs）。
+     *
+     * @return JSON 响应
      */
     public JsonNode spotMetaAndAssetCtxs() {
         Map<String, Object> payload = Map.of("type", "spotMetaAndAssetCtxs");
         return postInfo(payload);
     }
 
+
     /**
-     * L2 book snapshot
      * L2 订单簿快照。
+     * 可选聚合参数用于控制有效数字与尾数（仅当 nSigFigs 为 5 时允许设置 mantissa 为 1/2/5）。
      *
-     * @param coin     币种
-     * @param nSigFigs Optional field to aggregate levels to nSigFigs significant
-     *                 figures. Valid values are 2, 3, 4, 5, and null, which means
-     *                 full precision
-     * @param mantissa Optional field to aggregate levels. This field is only
-     *                 allowed if nSigFigs is 5. Accepts values of 1, 2 or 5.
+     * @param coin     币种名称
+     * @param nSigFigs 聚合到指定有效数字（可选：2、3、4、5 或 null）
+     * @param mantissa 尾数聚合（仅当 nSigFigs=5 时允许，取值 1/2/5）
+     * @return 类型化模型 L2Book
      */
     public L2Book l2Book(String coin, Integer nSigFigs, Integer mantissa) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -168,6 +216,12 @@ public class Info {
         return JSONUtil.convertValue(postInfo(payload), L2Book.class);
     }
 
+    /**
+     * L2 订单簿快照（默认全精度）。
+     *
+     * @param coin 币种名称
+     * @return 类型化模型 L2Book
+     */
     public L2Book l2Book(String coin) {
         return l2Book(coin, null, null);
     }
@@ -203,8 +257,13 @@ public class Info {
         return JSONUtil.toList(postInfo(payload), Candle.class);
     }
 
+
     /**
-     * 获取最近一个间隔周期的最新 K 线 便捷方法。
+     * 获取最近一个间隔周期的最新 K 线。
+     *
+     * @param coin     币种名称
+     * @param interval 间隔枚举
+     * @return 最近一根 K 线；若无数据返回 null
      */
     public Candle candleSnapshotLatest(String coin, CandleInterval interval) {
         long endTime = System.currentTimeMillis();
@@ -213,9 +272,15 @@ public class Info {
         return !candles.isEmpty() ? candles.getLast() : null;
     }
 
+
     /**
-     * 根据时间周期和K线数量获取
-     * 注意:仅提供最新的5000支蜡烛。
+     * 按数量获取最近的 K 线列表。
+     * 仅提供最新的 5000 根 K 线。
+     *
+     * @param coin     币种名称
+     * @param interval 间隔枚举
+     * @param count    需要的数量（>0）
+     * @return 最近的 K 线列表
      */
     public List<Candle> candleSnapshotByCount(String coin, CandleInterval interval, int count) {
         if (count <= 0) {
@@ -227,15 +292,24 @@ public class Info {
         return candles.size() > count ? candles.subList(candles.size() - count, candles.size()) : candles;
     }
 
+
     /**
-     * 查询用户未成交订单。
+     * 查询用户未成交订单（默认 perp dex）。
+     *
+     * @param address 用户地址
+     * @return 未成交订单列表
      */
     public List<OpenOrder> openOrders(String address) {
         return openOrders(address, null);
     }
 
+
     /**
-     * 查询用户未成交订单（openOrders），可指定 perp dex 名称。
+     * 查询用户未成交订单（可指定 perp dex）。
+     *
+     * @param address 用户地址
+     * @param dex     perp dex 名称（可为空）
+     * @return 未成交订单列表
      */
     public List<OpenOrder> openOrders(String address, String dex) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -247,11 +321,16 @@ public class Info {
         return JSONUtil.toList(postInfo(payload), OpenOrder.class);
     }
 
+
     /**
-     * Retrieve a user's fills by time
-     * Returns at most 2000 fills per response and only the 10000 most recent fills
-     * are available
      * 查询用户成交（按时间范围）。
+     * 返回最多 2000 条；仅保留最近的 10000 条可用。
+     *
+     * @param address         用户地址
+     * @param startTime       起始毫秒
+     * @param endTime         结束毫秒（可选）
+     * @param aggregateByTime 是否按时间聚合（可选）
+     * @return 成交列表
      */
     public List<UserFill> userFillsByTime(String address, Long startTime, Long endTime, Boolean aggregateByTime) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -279,23 +358,39 @@ public class Info {
         return userFillsByTime(address, startTime, null, aggregateByTime);
     }
 
+
     /**
      * 查询用户费用（返现/手续费）。
+     *
+     * @param address 用户地址
+     * @return JSON 响应
      */
     public JsonNode userFees(String address) {
         Map<String, Object> payload = Map.of("type", "userFees", "user", address);
         return postInfo(payload);
     }
 
+
     /**
-     * 查询资金费率历史（指定币种与时间范围）。
+     * 查询资金费率历史（按资产 ID）。
+     *
+     * @param coin    资产 ID
+     * @param startMs 起始毫秒
+     * @param endMs   结束毫秒
+     * @return JSON 响应
      */
     public JsonNode fundingHistory(int coin, long startMs, long endMs) {
         return this.fundingHistory(this.coinIdToInfoCoinString(coin), startMs, endMs);
     }
 
+ 
     /**
-     * 查询资金费率历史（指定币种与时间范围）。
+     * 查询资金费率历史（按币种名称）。
+     *
+     * @param coin    币种名称或内部标识（如 "BTC" 或 "@107"）
+     * @param startMs 起始毫秒
+     * @param endMs   结束毫秒
+     * @return JSON 响应
      */
     public JsonNode fundingHistory(String coin, long startMs, long endMs) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -306,13 +401,27 @@ public class Info {
         return postInfo(payload);
     }
 
+
     /**
-     * 查询用户资金费率历史（按用户与币种）。
+     * 查询用户资金费率历史（按资产 ID）。
+     *
+     * @param address 用户地址
+     * @param coin    资产 ID
+     * @param startMs 起始毫秒
+     * @param endMs   结束毫秒
+     * @return JSON 响应
      */
     public JsonNode userFundingHistory(String address, int coin, long startMs, long endMs) {
         return this.userFundingHistory(address, this.coinIdToInfoCoinString(coin), startMs, endMs);
     }
 
+    /**
+     * 将资产 ID 转换为 /info API coin 字段格式（形如 "@107"）。
+     *
+     * @param coinId 资产 ID
+     * @return 形如 "@<id>" 的字符串
+     * @throws HypeError 当 ID 不合法时抛出
+     */
     private String coinIdToInfoCoinString(int coinId) {
         Meta meta = loadMetaCache();
         List<Meta.Universe> universe = meta.getUniverse();
@@ -322,8 +431,15 @@ public class Info {
         return "@" + coinId;
     }
 
+
     /**
-     * 查询用户资金费率历史（按用户与币种）。
+     * 查询用户资金费率历史（按币种名称）。
+     *
+     * @param address 用户地址
+     * @param coin    币种名称或内部标识（如 "BTC" 或 "@107"）
+     * @param startMs 起始毫秒
+     * @param endMs   结束毫秒
+     * @return JSON 响应
      */
     public JsonNode userFundingHistory(String address, String coin, long startMs, long endMs) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -335,8 +451,14 @@ public class Info {
         return postInfo(payload);
     }
 
+
     /**
      * 用户非资金费率账本更新（不含 funding）。
+     *
+     * @param address 用户地址
+     * @param startMs 起始毫秒
+     * @param endMs   结束毫秒
+     * @return JSON 响应
      */
     public JsonNode userNonFundingLedgerUpdates(String address, long startMs, long endMs) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -347,8 +469,14 @@ public class Info {
         return postInfo(payload);
     }
 
+
     /**
      * 历史订单查询。
+     *
+     * @param address 用户地址
+     * @param startMs 起始毫秒
+     * @param endMs   结束毫秒
+     * @return JSON 响应
      */
     public JsonNode historicalOrders(String address, long startMs, long endMs) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -359,8 +487,14 @@ public class Info {
         return postInfo(payload);
     }
 
+
     /**
      * 用户 TWAP 切片成交查询。
+     *
+     * @param address 用户地址
+     * @param startMs 起始毫秒
+     * @param endMs   结束毫秒
+     * @return JSON 响应
      */
     public JsonNode userTwapSliceFills(String address, long startMs, long endMs) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -371,13 +505,13 @@ public class Info {
         return postInfo(payload);
     }
 
+
     /**
-     * Retrieve a user's open orders with additional frontend info
-     * 前端附加信息的未成交订单（frontendOpenOrders），可指定 perp dex 名称。
+     * 前端附加信息的未成交订单（frontendOpenOrders）。
      *
      * @param address 用户地址
-     * @param dex     perp dex 名称（可为空或空字符串）
-     * @return JSON 数组（包含前端额外字段）
+     * @param dex     perp dex 名称（可为空）
+     * @return 前端未成交订单列表
      */
     public List<FrontendOpenOrder> frontendOpenOrders(String address, String dex) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -389,17 +523,23 @@ public class Info {
         return JSONUtil.toList(postInfo(payload), FrontendOpenOrder.class);
     }
 
+    /**
+     * 前端附加信息的未成交订单（默认 perp dex）。
+     *
+     * @param address 用户地址
+     * @return 前端未成交订单列表
+     */
     public List<FrontendOpenOrder> frontendOpenOrders(String address) {
         return frontendOpenOrders(address, null);
     }
 
+
     /**
-     * Retrieve a user's fills
      * 用户最近成交（最多 2000 条）。
      *
      * @param address         用户地址
-     * @param aggregateByTime 是否按时间聚合（true/false）
-     * @return JSON 数组
+     * @param aggregateByTime 是否按时间聚合（可选）
+     * @return 成交列表
      */
     public List<UserFill> userFills(String address, Boolean aggregateByTime) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -415,6 +555,7 @@ public class Info {
         return userFills(address, null);
     }
 
+
     /**
      * 查询所有 perpetual dexs（perpDexs）。
      *
@@ -425,14 +566,12 @@ public class Info {
         return postInfo(payload);
     }
 
+
     /**
      * 查询所有 perpetual dexs（类型化返回）。
+     * 元素可能为 null 或对象，使用 Map 接收以适配字段变动。
      *
-     * <p>
-     * 文档示例显示返回数组的元素可能为 null 或对象，形如：
-     * [null, {"name":"test","fullName":"test dex", ...}]
-     * 因此此处采用 Map<String, Object> 以保持灵活的字段接收能力。
-     * </p>
+     * @return perp dex 列表（元素为 Map 或 null）
      */
     public List<Map<String, Object>> perpDexsTyped() {
         JsonNode node = perpDexs();
@@ -441,12 +580,13 @@ public class Info {
                         TypeFactory.defaultInstance().constructMapType(Map.class, String.class, Object.class)));
     }
 
+
     /**
      * 永续清算所状态（用户账户摘要）。
      *
      * @param address 用户地址
-     * @param dex     可选 dex 名称（传 null 则不包含该字段）
-     * @return JSON 对象
+     * @param dex     可选 perp dex 名称
+     * @return 类型化模型 ClearinghouseState
      */
     public ClearinghouseState clearinghouseState(String address, String dex) {
         Map<String, Object> payload = new LinkedHashMap<>();
@@ -458,16 +598,32 @@ public class Info {
         return JSONUtil.convertValue(postInfo(payload), ClearinghouseState.class);
     }
 
+    /**
+     * 永续清算所状态（默认 perp dex）。
+     *
+     * @param address 用户地址
+     * @return 类型化模型 ClearinghouseState
+     */
     public ClearinghouseState clearinghouseState(String address) {
         return clearinghouseState(address, null);
     }
 
+    /**
+     * 用户状态（同 clearinghouseState）。
+     *
+     * @param address 用户地址
+     * @return 类型化模型 ClearinghouseState
+     */
     public ClearinghouseState userState(String address) {
         return clearinghouseState(address, null);
     }
 
+
     /**
-     * 获取用户的代币余额
+     * 获取用户的代币余额（现货清算所状态）。
+     *
+     * @param address 用户地址
+     * @return 类型化模型 SpotClearinghouseState
      */
     public SpotClearinghouseState spotClearinghouseState(String address) {
         Map<String, Object> payload = Map.of("type", "spotClearinghouseState", "user", address);
@@ -475,9 +631,14 @@ public class Info {
         return JSONUtil.convertValue(node, SpotClearinghouseState.class);
     }
 
+
     /**
-     * Retrieve details for a vault
-     **/
+     * 查询 Vault 详情。
+     *
+     * @param vaultAddress Vault 地址
+     * @param user         用户地址（可选）
+     * @return JSON 响应
+     */
     public JsonNode vaultDetails(String vaultAddress, String user) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "vaultDetails");
@@ -488,94 +649,124 @@ public class Info {
         return postInfo(payload);
     }
 
+
     /**
      * Spot Deploy Auction 状态。
      *
-     * @param address 用户地址（文档要求）
-     * @return JSON 对象
+     * @param address 用户地址
+     * @return JSON 响应
      */
     public JsonNode spotDeployState(String address) {
         Map<String, Object> payload = Map.of("type", "spotDeployState", "user", address);
         return postInfo(payload);
     }
 
+
     /**
      * 用户组合（portfolio）。
+     *
+     * @param address 用户地址
+     * @return JSON 响应
      */
     public JsonNode portfolio(String address) {
         Map<String, Object> payload = Map.of("type", "portfolio", "user", address);
         return postInfo(payload);
     }
 
+
     /**
      * 用户仓位费率与等级（userRole）。
+     *
+     * @param address 用户地址
+     * @return JSON 响应
      */
     public JsonNode userRole(String address) {
         Map<String, Object> payload = Map.of("type", "userRole", "user", address);
         return postInfo(payload);
     }
 
+
     /**
-     * Query user rate limits
      * 用户速率限制（userRateLimit）。
+     *
+     * @param address 用户地址
+     * @return 类型化模型 UserRateLimit
      */
     public UserRateLimit userRateLimit(String address) {
         Map<String, Object> payload = Map.of("type", "userRateLimit", "user", address);
         return JSONUtil.convertValue(postInfo(payload), UserRateLimit.class);
     }
 
+
     /**
-     * Query order status by oid or cloid
-     * 订单状态查询（orderStatus）。
-     **/
+     * 订单状态查询（按 OID）。
+     *
+     * @param address 用户地址
+     * @param oid     订单 OID
+     * @return 类型化模型 OrderStatus
+     */
     public OrderStatus orderStatus(String address, Long oid) {
         Map<String, Object> payload = Map.of("type", "orderStatus", "user", address, "oid", oid);
         return JSONUtil.convertValue(postInfo(payload), OrderStatus.class);
     }
 
+
     /**
-     * 查询推荐人状态。
+     * 查询推荐人状态（queryReferralState）。
+     *
+     * @param address 用户地址
+     * @return JSON 响应
      */
     public JsonNode queryReferralState(String address) {
         Map<String, Object> payload = Map.of("type", "queryReferralState", "user", address);
         return postInfo(payload);
     }
 
+
     /**
      * 查询子账户列表。
+     *
+     * @param address 用户地址
+     * @return JSON 响应
      */
     public JsonNode querySubAccounts(String address) {
         Map<String, Object> payload = Map.of("type", "querySubAccounts", "user", address);
         return postInfo(payload);
     }
 
+
     /**
      * 查询用户到多签签名者映射。
+     *
+     * @param address 用户地址
+     * @return JSON 响应
      */
     public JsonNode queryUserToMultiSigSigners(String address) {
         Map<String, Object> payload = Map.of("type", "queryUserToMultiSigSigners", "user", address);
         return postInfo(payload);
     }
 
+
     /**
      * 永续部署拍卖状态。
+     *
+     * @return JSON 响应
      */
     public JsonNode queryPerpDeployAuctionStatus() {
         Map<String, Object> payload = Map.of("type", "queryPerpDeployAuctionStatus");
         return postInfo(payload);
     }
 
+
     /**
      * 现货部署拍卖状态。
+     *
+     * @return JSON 响应
      */
     public JsonNode querySpotDeployAuctionStatus() {
         Map<String, Object> payload = Map.of("type", "querySpotDeployAuctionStatus");
         return postInfo(payload);
     }
-
-    // =====================
-    // 新增：Perp 市场状态
-    // =====================
 
     /**
      * 获取 Perp 市场状态（perpDexStatus）。
@@ -601,29 +792,42 @@ public class Info {
         return JSONUtil.convertValue(node, PerpDexStatus.class);
     }
 
+
     /**
      * 查询用户 DEX 抽象状态。
+     *
+     * @param address 用户地址
+     * @return JSON 响应
      */
     public JsonNode queryUserDexAbstractionState(String address) {
         Map<String, Object> payload = Map.of("type", "queryUserDexAbstractionState", "user", address);
         return postInfo(payload);
     }
 
+
     /**
      * 用户仓库（vault）权益。
+     *
+     * @param address 用户地址
+     * @return JSON 响应
      */
     public JsonNode userVaultEquities(String address) {
         Map<String, Object> payload = Map.of("type", "userVaultEquities", "user", address);
         return postInfo(payload);
     }
 
+
     /**
      * 用户的额外代理（extraAgents）。
+     *
+     * @param address 用户地址
+     * @return JSON 响应
      */
     public JsonNode extraAgents(String address) {
         Map<String, Object> payload = Map.of("type", "extraAgents", "user", address);
         return postInfo(payload);
     }
+
 
     /**
      * 订阅 WebSocket。
@@ -637,6 +841,7 @@ public class Info {
         wsManager.subscribe(subscription, callback);
     }
 
+
     /**
      * 取消订阅。
      *
@@ -648,6 +853,7 @@ public class Info {
         wsManager.unsubscribe(subscription);
     }
 
+
     /**
      * 关闭 WebSocket 连接。
      */
@@ -656,12 +862,9 @@ public class Info {
             wsManager.stop();
     }
 
-    // ============================
-    // WebSocket 重连与网络监听配置代理
-    // ============================
 
     /**
-     * 添加连接状态监听器（用于接收连接、断开、重连、网络状态变化的通知）。
+     * 添加连接状态监听器（连接/断开/重连/网络状态变化）。
      *
      * @param listener 监听器实现
      */
@@ -671,6 +874,7 @@ public class Info {
         if (wsManager != null)
             wsManager.addConnectionListener(listener);
     }
+
 
     /**
      * 移除连接状态监听器。
@@ -684,6 +888,7 @@ public class Info {
             wsManager.removeConnectionListener(listener);
     }
 
+
     /**
      * 设置最大重连尝试次数（默认 5）。
      *
@@ -696,6 +901,7 @@ public class Info {
             wsManager.setMaxReconnectAttempts(max);
     }
 
+
     /**
      * 设置网络监控的检查间隔（秒）。
      *
@@ -707,6 +913,7 @@ public class Info {
         if (wsManager != null)
             wsManager.setNetworkCheckIntervalSeconds(seconds);
     }
+
 
     /**
      * 设置重连指数退避参数。
@@ -721,8 +928,11 @@ public class Info {
             wsManager.setReconnectBackoffMs(initialMs, maxMs);
     }
 
+
     /**
-     * 添加回调异常监听器
+     * 添加回调异常监听器。
+     *
+     * @param listener 监听器实现
      */
     public void addCallbackErrorListener(WebsocketManager.CallbackErrorListener listener) {
         if (skipWs)
@@ -731,8 +941,11 @@ public class Info {
             wsManager.addCallbackErrorListener(listener);
     }
 
+
     /**
-     * 移除回调异常监听器
+     * 移除回调异常监听器。
+     *
+     * @param listener 监听器实现
      */
     public void removeCallbackErrorListener(WebsocketManager.CallbackErrorListener listener) {
         if (skipWs)
