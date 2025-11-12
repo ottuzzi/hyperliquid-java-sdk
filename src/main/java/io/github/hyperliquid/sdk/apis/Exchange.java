@@ -3,6 +3,7 @@ package io.github.hyperliquid.sdk.apis;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import io.github.hyperliquid.sdk.model.approve.ApproveAgentResult;
 import io.github.hyperliquid.sdk.model.info.Meta;
 import io.github.hyperliquid.sdk.model.info.UpdateLeverage;
 import io.github.hyperliquid.sdk.model.order.*;
@@ -536,7 +537,7 @@ public class Exchange {
     }
 
     public JsonNode sendAsset(String destination, String sourceDex, String destinationDex, String token, String amount,
-            String fromSubAccount) {
+                              String fromSubAccount) {
         long nonce = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "sendAsset");
@@ -678,7 +679,7 @@ public class Exchange {
      * SpotDeploy: 注册 Token（registerToken2）
      */
     public JsonNode spotDeployRegisterToken(String tokenName, int szDecimals, int weiDecimals, int maxGas,
-            String fullName) {
+                                            String fullName) {
         Map<String, Object> action = new LinkedHashMap<>();
         Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("name", tokenName);
@@ -814,7 +815,7 @@ public class Exchange {
      * SpotDeploy: 注册 Hyperliquidity 做市
      */
     public JsonNode spotDeployRegisterHyperliquidity(int spot, double startPx, double orderSz, int nOrders,
-            Integer nSeededLevels) {
+                                                     Integer nSeededLevels) {
         Map<String, Object> register = new LinkedHashMap<>();
         register.put("spot", spot);
         register.put("startPx", String.valueOf(startPx));
@@ -850,13 +851,13 @@ public class Exchange {
      * - 使用 signUserSignedAction(primaryType="HyperliquidTransaction:ApproveAgent")
      * 签名；
      * - 发送到 /exchange 并返回服务端响应与新私钥。
-     *
+     * <p>
      * 注意：当 name 为 null 时，不在 action 中包含 agentName 字段（与 Python 对齐）。
      *
      * @param name 可选的 Agent 名称（显示用途），可为 null
      * @return 服务端响应与生成的 Agent 私钥/地址
      */
-    public io.github.hyperliquid.sdk.model.approve.ApproveAgentResult approveAgent(String name) {
+    public ApproveAgentResult approveAgent(String name) {
         // 生成 32 字节随机私钥（0x 前缀）
         byte[] bytes = new byte[32];
         new java.security.SecureRandom().nextBytes(bytes);
