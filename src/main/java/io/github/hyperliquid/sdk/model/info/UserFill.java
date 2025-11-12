@@ -9,21 +9,37 @@ import lombok.Data;
 @Data
 public class UserFill {
 
+    /** 币种（如 "BTC" 或 Spot 索引 "@107"） */
     private String coin;
+    /** 成交价格（字符串） */
     private String px;
+    /** 成交数量（字符串） */
     private String sz;
+    /** 方向（A/B 或 Buy/Sell） */
     private String side;
+    /** 成交时间戳（毫秒） */
     private Long time;
+    /** 成交时起始仓位大小（字符串） */
     private String startPosition;
+    /** 方向描述（如 open/close 等） */
     private String dir;
+    /** 已关闭盈亏（字符串） */
     private String closedPnl;
+    /** 成交哈希 */
     private String hash;
+    /** 订单 ID */
     private Long oid;
+    /** 是否为穿越成交（crossed） */
     private Boolean crossed;
+    /** 手续费（字符串） */
     private String fee;
+    /** 成交序号（tid） */
     private Long tid;
+    /** 手续费代币标识 */
     private String feeToken;
+    /** TWAP 策略 ID（若为切片成交） */
     private String twapId;
+    /** Builder 费用（字符串，若适用） */
     private String builderFee;
 
 

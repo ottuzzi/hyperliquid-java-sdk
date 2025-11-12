@@ -39,7 +39,7 @@ public class OrderType {
 
     /**
      * Alo限价单类型
-     * ALO (All Or None) ：订单要求全部成交，否则将被取消。
+     * ALO (Add Liquidity Only)：仅添加流动性，若会立即成交则取消。
      **/
     public static OrderType limitByAlo() {
         return new OrderType(new LimitOrderType(Tif.ALO));

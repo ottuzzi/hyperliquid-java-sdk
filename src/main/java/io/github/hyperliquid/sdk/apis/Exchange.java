@@ -537,7 +537,7 @@ public class Exchange {
     }
 
     public JsonNode sendAsset(String destination, String sourceDex, String destinationDex, String token, String amount,
-                              String fromSubAccount) {
+            String fromSubAccount) {
         long nonce = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "sendAsset");
@@ -679,7 +679,7 @@ public class Exchange {
      * SpotDeploy: 注册 Token（registerToken2）
      */
     public JsonNode spotDeployRegisterToken(String tokenName, int szDecimals, int weiDecimals, int maxGas,
-                                            String fullName) {
+            String fullName) {
         Map<String, Object> action = new LinkedHashMap<>();
         Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("name", tokenName);
@@ -815,7 +815,7 @@ public class Exchange {
      * SpotDeploy: 注册 Hyperliquidity 做市
      */
     public JsonNode spotDeployRegisterHyperliquidity(int spot, double startPx, double orderSz, int nOrders,
-                                                     Integer nSeededLevels) {
+            Integer nSeededLevels) {
         Map<String, Object> register = new LinkedHashMap<>();
         register.put("spot", spot);
         register.put("startPx", String.valueOf(startPx));
@@ -933,6 +933,8 @@ public class Exchange {
                 nonce,
                 effectiveExpiresAfter,
                 isMainnet());
+
+        
 
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("action", action);
