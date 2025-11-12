@@ -57,9 +57,13 @@ classDiagram
       +setReconnectBackoffMs(initial, max)
     }
     class HypeHttpClient {
-      +post(url, body)
+      +post(String path, Object payload) 
     }
-   
+    HyperliquidClient --> Info
+    HyperliquidClient --> Exchange
+    Info --> WebsocketManager
+    Info --> HypeHttpClient
+    Exchange --> HypeHttpClient
 ```
 
 ## 功能特性
