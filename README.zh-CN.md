@@ -1,228 +1,185 @@
-**Languages:** [English](README.md)
+**语言切换：** [English](README.md)
 
 # Hyperliquid Java SDK
 
-Hyperliquid 去中心化交易所的软件开发工具包 (SDK)。
+[![Maven Central](https://img.shields.io/maven-central/v/io.github.heiye115/hyperliquid-java-sdk.svg)](https://central.sonatype.com/artifact/io.github.heiye115/hyperliquid-java-sdk)
+[![License](https://img.shields.io/badge/license-Apache%202.0-blue.svg)](LICENSE)
+[![JDK](https://img.shields.io/badge/JDK-21%2B-orange)](pom.xml)
+[![Stars](https://img.shields.io/github/stars/heiye115/hyperliquid-java-sdk?style=social)](https://github.com/heiye115/hyperliquid-java-sdk)
+[![Issues](https://img.shields.io/github/issues/heiye115/hyperliquid-java-sdk)](https://github.com/heiye115/hyperliquid-java-sdk/issues)
+
+纯 Java 的 Hyperliquid 去中心化交易所 SDK：行情查询、WebSocket 订阅、下单与签名、多钱包管理。
 
 ## 目录
-
-- 特性
-- 项目概述（保留锚点）
-- 安装
-- 使用
-    - 快速开始
-    - 编译与运行示例
-- 配置
-- 示例
-- 架构
-- 风格与术语
-- 版本与同步
-- 验证清单
-- 许可证
-
-## 特性
-
-- Info 客户端：行情、订单簿、用户状态
-- Exchange 客户端：下单、批量下单、撤单/改价
-- ExchangeManager：统一管理多个钱包凭证并复用单个 Info 客户端，简化常见交易流程
-- WebSocket 管理器：连接生命周期、心跳、自动重订阅、指数退避重连
+- [项目概述](#项目概述)
+- [架构设计](#架构设计)
+- [功能特性](#功能特性)
+- [安装部署](#安装部署)
+- [5分钟快速开始](#5分钟快速开始)
+- [配置选项](#配置选项)
+- [API 参考](#api-参考)
+- [贡献指南](#贡献指南)
+- [许可协议](#许可协议)
 
 ## 项目概述
+- 统一客户端入口，分别提供 Info（行情）与 Exchange（交易）能力。
+- 支持多钱包私钥注册与切换，按钱包维度获取 Exchange 实例。
+- WebSocket 管理器具备断线重连、指数退避与网络监控。
+- 兼容 Hyperliquid 行动的 EIP-712 签名，基于 MessagePack 的动作哈希。
 
-为提高可读性，原“项目概述”已重组为上方“特性”模块。请参见“特性”获取 SDK 组件的高级说明。
-
-## 安装
-
-环境要求：
-
-- Java 21 或更高版本
-- Maven 3.8+
-
-从源码构建：
-
-```bash
-mvn -q -DskipTests=true clean package
-mvn -q dependency:copy-dependencies
+## 架构设计
+```mermaid
+classDiagram
+    class HyperliquidClient {
+      +builder()
+      +getInfo()
+      +useExchange(privateKey)
+      +getAddress(privateKey)
+    }
+    class Info {
+      +l2Book(coin)
+      +candles(coin, interval)
+      +userState(address)
+      +subscribe(subscription, callback)
+    }
+    class Exchange {
+      +order(req)
+      +bulkOrders(requests)
+      +cancel(coin, oid)
+      +updateLeverage(coin, crossed, leverage)
+    }
+    class WebsocketManager {
+      +subscribe(JsonNode, MessageCallback)
+      +setMaxReconnectAttempts(int)
+      +setReconnectBackoffMs(initial, max)
+    }
+    class HypeHttpClient
+    HyperliquidClient --> Info
+    HyperliquidClient --> Exchange
+    Info --> WebsocketManager
+    Info --> HypeHttpClient
+    Exchange --> HypeHttpClient
 ```
 
-作为依赖使用（Maven）：
+## 功能特性
+- 行情查询：`l2Book`、K线、用户成交、未成交订单、清算所状态等。
+- 交易能力：限价/市价/触发单、批量下单、修改/撤单、杠杆与保证金更新。
+- WebSocket：频道订阅、消息回调与错误监听、心跳与断线重连。
+- 签名能力：L1 与用户签名（EIP-712 Typed Data）、MessagePack 哈希。
+- 常用工具：JSON 转换、主网/测试网 URL 常量。
 
-如果你要在自己的项目中集成本 SDK，请在项目根目录的 pom.xml 中添加以下依赖配置：
-
+## 安装部署
+- 前置要求：JDK `21+`，Maven 或 Gradle。
+- Maven 依赖：
 ```xml
-
 <dependency>
-    <groupId>io.github.heiye115</groupId>
-    <artifactId>hyperliquid-java-sdk</artifactId>
-    <version>0.2.0</version>
-    <!-- 请确保项目使用 Java 21+ -->
+  <groupId>io.github.heiye115</groupId>
+  <artifactId>hyperliquid-java-sdk</artifactId>
+  <version>0.2.0</version>
 </dependency>
 ```
+- Gradle（Groovy）：
+```gradle
+implementation 'io.github.heiye115:hyperliquid-java-sdk:0.2.0'
+```
+- 备选方案（若尚未发布到中央仓库）：JitPack
+```gradle
+repositories { maven { url 'https://jitpack.io' } }
+implementation 'com.github.heiye115:hyperliquid-java-sdk:main-SNAPSHOT'
+```
 
-说明：
-
-- 请确保项目使用的 JDK 版本为 21 或更高。
-- 如果之前通过源码构建并在本地引用模块，现在可直接使用 Maven 依赖以简化集成。
-
-## 使用
-
-本文档重点展示 ExchangeManager 相关示例。
-
-### 快速开始
-
+## 5分钟快速开始
+- 强烈建议使用环境变量注入私钥，切勿硬编码敏感信息。
 ```java
+import com.fasterxml.jackson.databind.JsonNode;
 import io.github.hyperliquid.sdk.HyperliquidClient;
 import io.github.hyperliquid.sdk.apis.Exchange;
-import io.github.hyperliquid.sdk.model.order.*;
-import io.github.hyperliquid.sdk.utils.Constants;
+import io.github.hyperliquid.sdk.apis.Info;
+import io.github.hyperliquid.sdk.model.info.L2Book;
+import io.github.hyperliquid.sdk.model.order.Order;
+import io.github.hyperliquid.sdk.model.order.OrderRequest;
+import io.github.hyperliquid.sdk.model.order.Tif;
+import io.github.hyperliquid.sdk.utils.HypeError;
+import io.github.hyperliquid.sdk.utils.JSONUtil;
 
-/**
- * 类说明：使用 ExchangeManager 在测试网初始化并进行示例下单。
- * 注意：如需真实下单请设置环境变量 HL_PK（私钥）。若未设置 HL_PK，示例仅打印中间价并跳过下单。
- */
-public class QuickExchangeManagerDemoCN {
-    /**
-     * 方法说明：应用入口，演示 ExchangeManager 初始化与基本下单流程。
-     * 1. 从环境变量读取 HL_PK；
-     * 2. 构建 ExchangeManager（测试网地址、超时、跳过 WS、私钥配置）；
-     * 3. 打印 BTC 中间价；
-     * 4. 当存在私钥时，演示限价买入 ETH 的下单请求。
-     */
-    public static void main(String[] args) {
-        // 读取环境变量 HL_PK
-        String pk = System.getenv("HL_PK");
+public class QuickStart {
+  public static void main(String[] args) {
+    String pk = System.getenv("HYPERLIQUID_PRIVATE_KEY");
+    if (pk == null || pk.isBlank()) throw new IllegalStateException("请设置 HYPERLIQUID_PRIVATE_KEY");
 
-        // 构建 ExchangeManager：设置测试网地址、请求超时、跳过 WebSocket、添加私钥（若为空则使用占位私钥避免真实下单）
-        HyperliquidClient manager = HyperliquidClient.builder()
-                .baseUrl(Constants.TESTNET_API_URL)
-                .timeout(10)           // 请求超时（秒），示例值为 10
-                .skipWs(true)          // 跳过 WebSocket（示例场景无需订阅）
-                .addPrivateKey(pk == null || pk.isBlank() ?
-                        "0x0000000000000000000000000000000000000000000000000000000000000000" : pk)
-                .build();
+    HyperliquidClient client = HyperliquidClient.builder()
+        .testNetUrl()
+        .addPrivateKey(pk)
+        .build();
 
-        // 获取行情信息并打印 BTC 中间价
-        InfoClientBK info = manager.getInfo();
-        System.out.println("BTC 中间价: " + info.allMids().getOrDefault("BTC", "N/A"));
+    Info info = client.getInfo();
+    L2Book book = info.l2Book("ETH");
+    System.out.println("买一价: " + book.getLevels().get(0).get(0).getPx());
 
-        // 若存在真实私钥，演示一次限价下单
-        if (pk != null && !pk.isBlank()) {
-            Exchange ex = manager.getSingleExchange();
-
-            // 订单类型：限价、有效期 GTC（Good-Till-Cancelled）
-            OrderType type = new OrderType(new LimitOrderType("Gtc"), null);
-
-            // 下单请求：买入 ETH，数量 0.01，价格 2500.0
-            OrderRequest req = new OrderRequest("ETH", true, 0.01, 2500.0, type, false, null);
-
-            // 执行下单并打印返回结果（美化输出）
-            System.out.println(ex.order(req).toPrettyString());
-        } else {
-            System.out.println("未提供私钥，跳过真实下单示例。");
-        }
+    Exchange ex = client.useExchange(pk);
+    OrderRequest req = OrderRequest.createDefaultPerpLimitOrder(Tif.GTC, "ETH", true, 0.001, 3500.0);
+    try {
+      Order order = ex.order(req);
+      System.out.println("下单状态: " + order.getStatus());
+    } catch (HypeError e) {
+      System.err.println("下单失败: " + e.getMessage());
     }
+
+    JsonNode sub = JSONUtil.convertValue(java.util.Map.of("type","l2Book","coin","ETH"), JsonNode.class);
+    info.subscribe(sub, msg -> System.out.println("WS消息: " + msg));
+    try { Thread.sleep(10000); } catch (InterruptedException ignored) {}
+    info.closeWs();
+  }
 }
 ```
 
-最低版本：使用 ExchangeManager 需要 SDK 版本 >= 0.2.0。
+## 配置选项
+- 构建器选项（`src/main/java/io/github/hyperliquid/sdk/HyperliquidClient.java:91`）：
+  - `baseUrl(String)` 与 `testNetUrl()` 基于 `Constants` 主网/测试网（`src/main/java/io/github/hyperliquid/sdk/utils/Constants.java:11`, `:16`）。
+  - `addPrivateKey(String)` / `addPrivateKeys(List<String>)` 注册钱包私钥。
+  - `skipWs(boolean)` 关闭 Info 的 WebSocket 管理。
+  - `timeout(int)` 配置 OkHttp 超时。
+  - `okHttpClient(OkHttpClient)` 注入自定义客户端。
+  - `enableDebugLogs()` 打开包级 DEBUG 日志。
+- WebSocket 调优（`Info`）：
+  - `setMaxReconnectAttempts(int)`（`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:897`）。
+  - `setNetworkCheckIntervalSeconds(int)`（`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:910`）。
+  - `setReconnectBackoffMs(initialMs, maxMs)`（`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:924`）。
 
-### 编译与运行示例（Windows PowerShell）
+## API 参考
+- HyperliquidClient
+  - `builder()`（`src/main/java/io/github/hyperliquid/sdk/HyperliquidClient.java:91`）
+  - `getInfo()`（`src/main/java/io/github/hyperliquid/sdk/HyperliquidClient.java:46`）
+  - `useExchange(privateKey)`（`src/main/java/io/github/hyperliquid/sdk/HyperliquidClient.java:63`）
+  - `getAddress(privateKey)`（`src/main/java/io/github/hyperliquid/sdk/HyperliquidClient.java:74`）
+- Info
+  - `l2Book(String coin)`（`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:225`）
+  - `subscribe(JsonNode, MessageCallback)`（`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:838`）
+  - 用户/账户状态：`clearinghouseState`、`userState`、`spotClearinghouseState`（见 `Info.java:591`, `Info.java:617`, `Info.java:628`）。
+- Exchange
+  - `order(OrderRequest)` 及带 builder 重载（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:208`, `Exchange.java:127`）。
+  - `bulkOrders(List<OrderRequest>)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:253`）。
+  - `cancel(String coin, long oid)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:264`）。
+  - `cancelByCloid(String coin, Cloid)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:283`）。
+  - `modifyOrder(String coin, long oid, OrderRequest)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:302`）。
+  - `updateLeverage(String coin, boolean crossed, int leverage)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:100`）。
+  - Dex Abstraction：`agentEnableDexAbstraction()` / `userDexAbstraction(user, enabled)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:386`, `Exchange.java:409`）。
+- WebsocketManager
+  - `MessageCallback` 接口（`src/main/java/io/github/hyperliquid/sdk/websocket/WebsocketManager.java:106`）。
+  - 支持连接状态监听与回调异常监听。
+- HypeHttpClient
+  - `post(String, Object)` 携带 4xx/5xx 错误分类（`src/main/java/io/github/hyperliquid/sdk/utils/HypeHttpClient.java:37`）。
 
-```bash
-mvn -q -DskipTests=true clean package
-mvn -q dependency:copy-dependencies
-javac -cp target/classes;target/dependency/* \
-  examples/ExchangeManagerBasicExample.java \
-  examples/ExchangeManagerScenarioExample.java \
-  examples/ExchangeManagerErrorHandlingExample.java \
-  examples/QuickExchangeManagerDemoCN.java
+## 贡献指南
+- Fork 仓库并创建功能分支。
+- 遵循 Java 命名与 Clean Code 规范；在 MVC 系统中集成时保持 Controller 轻薄、将业务逻辑沉淀在 Service 层。
+- 本地执行 `mvn -q -DskipTests package`，确保使用 Java 21。
+- 为关键逻辑补充必要的单元测试。
+- 提交 Pull Request，描述清晰、引用充分。
 
-# 无私钥运行（示例将跳过真实下单）
-java -cp .;examples;target/classes;target/dependency/* ExchangeManagerBasicExample
-java -cp .;examples;target/classes;target/dependency/* ExchangeManagerErrorHandlingExample
-java -cp .;examples;target/classes;target/dependency/* QuickExchangeManagerDemoCN
-```
+## 许可协议
+- Apache License 2.0，详见 `LICENSE`。
 
-## 配置
-
-ExchangeManager 的 builder 常用选项如下：
-
-| 选项            | 类型      | 默认值         | 说明                                      |
-|---------------|---------|-------------|-----------------------------------------|
-| baseUrl       | String  | Testnet URL | API 基地址（例如 `Constants.TESTNET_API_URL`） |
-| timeout       | int     | 示例：10       | 请求超时（秒），示例使用 10                         |
-| skipWs        | boolean | false/true  | 是否跳过 WebSocket 订阅（用于简单演示场景）             |
-| addPrivateKey | String  | —           | 添加用于交易的私钥；使用占位私钥可避免真实下单                 |
-
-环境变量：
-
-- HL_PK — 用于签名订单的私钥。未设置时示例仅打印中间价并跳过真实下单。
-
-## 示例
-
-`examples/` 目录中的 ExchangeManager 相关示例：
-
-- ExchangeManagerBasicExample.java —— 初始化管理器并进行安全下单演示
-- ExchangeManagerScenarioExample.java —— 典型交易流程：下单、批量下单、撤单/改价
-- ExchangeManagerErrorHandlingExample.java —— 错误处理：缺失/非法私钥与异常示范
-- QuickExchangeManagerDemoCN.java —— 中文注释版快速演示（与 README 示例思路一致）
-
-## 架构
-
-模块与数据流高层示意：
-
-```mermaid
-flowchart LR
-    A[ExchangeManager] --> B[Info 客户端]
-    A --> C[Exchange 客户端]
-    A --> D[WebSocket 管理器]
-    B --> E[(行情数据)]
-    C --> F[(下单 / 改价 / 撤单)]
-    D --> G{连接生命周期}
-    G --> H[心跳]
-    G --> I[自动重订阅]
-    G --> J[指数退避重连]
-```
-
-典型下单流程时序：
-
-```mermaid
-sequenceDiagram
-    participant App
-    participant Manager as ExchangeManager
-    participant Ex as Exchange 客户端
-    App->>Manager: build(baseUrl, timeout, skipWs, addPrivateKey)
-    Manager->>Ex: getSingleExchange()
-    App->>Ex: order(OrderRequest: symbol=ETH, side=buy, qty=0.01, price=2500, type=Limit GTC)
-    Ex-->>App: OrderResponse (pretty JSON)
-```
-
-## 风格与术语
-
-- 术语统一：ExchangeManager、Info 客户端、Exchange 客户端、WebSocket 管理器。
-- 所有代码示例包含类注释与方法注释，明确职责与关键步骤。
-- 代码块保持语言标注（`java`、`bash`、`xml`、`mermaid`）以获得平台高亮效果。
-
-## 版本与同步
-
-- 最低版本：ExchangeManager 需要 SDK 版本 >= 0.2.0。
-- README 与 SDK API 需保持同步；当 builder 选项或示例流程更新时，请同步更新“配置”和“使用”章节。
-- `examples/` 目录中的示例是可运行流程的真实来源；如示例签名或流程变动，请及时在 README 中反映。
-
-## 验证清单
-
-- 示例可按提供的命令编译运行（Windows PowerShell）
-- 文档结构清晰，中英文导航可用（README.md / README.zh-CN.md）
-- 代码样例格式规范，包含必要注释与语言标注
-- 保留原文档锚点（项目概述、安装、使用、验证清单、许可证）
-- 无残余过时示例的引用
-
-## 许可证
-
-Apache License 2.0。详见项目根目录 `LICENSE` 文件。
-
-版权声明：
-
-- Copyright (c) 2025 Hyperliquid Java SDK contributors
-- 按 Apache 2.0 许可“现状”分发，不附带任何明示或暗示的担保或条件。
-
+## 注意事项
+- 切勿提交真实私钥，建议使用环境变量或安全密钥管理服务。
+- 主网与测试网基础 URL 定义见 `Constants`（`src/main/java/io/github/hyperliquid/sdk/utils/Constants.java:11`, `:16`）。
