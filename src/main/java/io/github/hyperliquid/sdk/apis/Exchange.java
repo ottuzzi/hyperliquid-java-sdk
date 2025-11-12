@@ -315,14 +315,14 @@ public class Exchange {
      */
     private Map<String, Object> buildOrderAction(List<OrderWire> wires, Map<String, Object> builder) {
         Map<String, Object> action = Signing.orderWiresToOrderAction(wires);
-        // 根据是否为触发单选择 grouping（与文档一致）
+        // 根据是否为触发单选择合适的分组：触发单使用 "normalTpsl"，其余使用 "na"
         String grouping = "na";
         Object ordersObj = action.get("orders");
-        if (ordersObj instanceof List<?> list) {
+        if (ordersObj instanceof java.util.List<?> list) {
             for (Object o : list) {
-                if (o instanceof Map<?, ?> m) {
+                if (o instanceof java.util.Map<?, ?> m) {
                     Object t = m.get("t");
-                    if (t instanceof Map<?, ?> tm && tm.containsKey("trigger")) {
+                    if (t instanceof java.util.Map<?, ?> tm && tm.containsKey("trigger")) {
                         grouping = "normalTpsl";
                         break;
                     }
