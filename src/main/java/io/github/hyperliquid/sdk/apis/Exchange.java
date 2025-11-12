@@ -19,6 +19,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * ExchangeClient 客户端，负责下单、撤单、转账等 L1/L2 操作。
@@ -55,6 +56,14 @@ public class Exchange {
 
     private final Cache<String, Boolean> dexEnabledCache = Caffeine.newBuilder()
             .maximumSize(1000)
+            .expireAfterWrite(30, TimeUnit.MINUTES)
+            .recordStats()
+            .build();
+
+    private static final Pattern ETH_ADDRESS_PATTERN = Pattern.compile("^0x[0-9a-f]{40}$");
+
+    private final Cache<String, Integer> szDecimalsCache = Caffeine.newBuilder()
+            .maximumSize(1024)
             .expireAfterWrite(30, TimeUnit.MINUTES)
             .recordStats()
             .build();
@@ -142,6 +151,7 @@ public class Exchange {
         ensureDexAbstractionEnabled();
         OrderRequest effective = prepareRequest(req);
         marketOpenTransition(effective);
+        normalizePerpLimitPx(effective);
         int assetId = ensureAssetId(effective.getCoin());
         OrderWire wire = Signing.orderRequestToOrderWire(assetId, effective);
         Map<String, Object> action = buildOrderAction(List.of(wire), builder);
@@ -153,6 +163,33 @@ public class Exchange {
             }
         }
         return JSONUtil.convertValue(node, Order.class);
+    }
+
+    private void normalizePerpLimitPx(OrderRequest req) {
+        if (req == null)
+            return;
+        if (req.getInstrumentType() != io.github.hyperliquid.sdk.model.order.InstrumentType.PERP)
+            return;
+        Double px = req.getLimitPx();
+        if (px == null)
+            return;
+        String coin = req.getCoin();
+        Integer szDecimals = szDecimalsCache.getIfPresent(coin);
+        if (szDecimals == null) {
+            io.github.hyperliquid.sdk.model.info.Meta.Universe mu = info.getMetaUniverse(coin);
+            szDecimals = mu.getSzDecimals();
+            if (szDecimals != null)
+                szDecimalsCache.put(coin, szDecimals);
+        }
+        if (szDecimals == null)
+            return;
+        int decimals = 6 - szDecimals;
+        if (decimals < 0)
+            decimals = 0;
+        java.math.BigDecimal bd = java.math.BigDecimal.valueOf(px)
+                .round(new java.math.MathContext(5, java.math.RoundingMode.HALF_UP))
+                .setScale(decimals, java.math.RoundingMode.HALF_UP);
+        req.setLimitPx(bd.doubleValue());
     }
 
     private OrderRequest prepareRequest(OrderRequest req) {
@@ -345,8 +382,7 @@ public class Exchange {
                 Object bVal = builder.get("b");
                 if (bVal instanceof String s) {
                     String addr = s.toLowerCase();
-                    // 校验地址格式：必须为 0x 开头的 42 字符长度十六进制地址
-                    if (!addr.matches("^0x[0-9a-f]{40}$")) {
+                    if (!ETH_ADDRESS_PATTERN.matcher(addr).matches()) {
                         throw new HypeError("builder.b 必须是 42 位 0x 开头的十六进制地址，例如 0x000...000");
                     }
                     filtered.put("b", addr);
@@ -415,11 +451,11 @@ public class Exchange {
         action.put("nonce", nonce);
 
         // 构造与 Python 完全一致的 payloadTypes
-        List<Map<String, Object>> payloadTypes = new ArrayList<>();
-        payloadTypes.add(Map.of("name", "hyperliquidChain", "type", "string"));
-        payloadTypes.add(Map.of("name", "user", "type", "address"));
-        payloadTypes.add(Map.of("name", "enabled", "type", "bool"));
-        payloadTypes.add(Map.of("name", "nonce", "type", "uint64"));
+        List<Map<String, Object>> payloadTypes = List.of(
+                Map.of("name", "hyperliquidChain", "type", "string"),
+                Map.of("name", "user", "type", "address"),
+                Map.of("name", "enabled", "type", "bool"),
+                Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
                 wallet,
@@ -477,11 +513,11 @@ public class Exchange {
         action.put("amount", String.valueOf(Signing.floatToUsdInt(amount)));
         action.put("time", time);
 
-        List<Map<String, Object>> payloadTypes = new ArrayList<>();
-        payloadTypes.add(Map.of("name", "hyperliquidChain", "type", "string"));
-        payloadTypes.add(Map.of("name", "destination", "type", "string"));
-        payloadTypes.add(Map.of("name", "amount", "type", "string"));
-        payloadTypes.add(Map.of("name", "time", "type", "uint64"));
+        List<Map<String, Object>> payloadTypes = List.of(
+                Map.of("name", "hyperliquidChain", "type", "string"),
+                Map.of("name", "destination", "type", "string"),
+                Map.of("name", "amount", "type", "string"),
+                Map.of("name", "time", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
                 wallet,
@@ -509,12 +545,12 @@ public class Exchange {
         action.put("amount", String.valueOf(amount));
         action.put("time", time);
 
-        List<Map<String, Object>> payloadTypes = new ArrayList<>();
-        payloadTypes.add(Map.of("name", "hyperliquidChain", "type", "string"));
-        payloadTypes.add(Map.of("name", "destination", "type", "string"));
-        payloadTypes.add(Map.of("name", "token", "type", "string"));
-        payloadTypes.add(Map.of("name", "amount", "type", "string"));
-        payloadTypes.add(Map.of("name", "time", "type", "uint64"));
+        List<Map<String, Object>> payloadTypes = List.of(
+                Map.of("name", "hyperliquidChain", "type", "string"),
+                Map.of("name", "destination", "type", "string"),
+                Map.of("name", "token", "type", "string"),
+                Map.of("name", "amount", "type", "string"),
+                Map.of("name", "time", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
                 wallet,
@@ -540,11 +576,11 @@ public class Exchange {
         action.put("amount", String.valueOf(amount));
         action.put("time", time);
 
-        List<Map<String, Object>> payloadTypes = new ArrayList<>();
-        payloadTypes.add(Map.of("name", "hyperliquidChain", "type", "string"));
-        payloadTypes.add(Map.of("name", "destination", "type", "string"));
-        payloadTypes.add(Map.of("name", "amount", "type", "string"));
-        payloadTypes.add(Map.of("name", "time", "type", "uint64"));
+        List<Map<String, Object>> payloadTypes = List.of(
+                Map.of("name", "hyperliquidChain", "type", "string"),
+                Map.of("name", "destination", "type", "string"),
+                Map.of("name", "amount", "type", "string"),
+                Map.of("name", "time", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
                 wallet,
@@ -570,11 +606,11 @@ public class Exchange {
         action.put("toPerp", toPerp);
         action.put("nonce", nonce);
 
-        List<Map<String, Object>> payloadTypes = new ArrayList<>();
-        payloadTypes.add(Map.of("name", "hyperliquidChain", "type", "string"));
-        payloadTypes.add(Map.of("name", "amount", "type", "string"));
-        payloadTypes.add(Map.of("name", "toPerp", "type", "bool"));
-        payloadTypes.add(Map.of("name", "nonce", "type", "uint64"));
+        List<Map<String, Object>> payloadTypes = List.of(
+                Map.of("name", "hyperliquidChain", "type", "string"),
+                Map.of("name", "amount", "type", "string"),
+                Map.of("name", "toPerp", "type", "bool"),
+                Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
                 wallet,
@@ -597,7 +633,7 @@ public class Exchange {
      * @return JSON 响应
      */
     public JsonNode sendAsset(String destination, String sourceDex, String destinationDex, String token, String amount,
-                              String fromSubAccount) {
+            String fromSubAccount) {
         long nonce = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "sendAsset");
@@ -609,15 +645,15 @@ public class Exchange {
         action.put("fromSubAccount", fromSubAccount);
         action.put("nonce", nonce);
 
-        List<Map<String, Object>> payloadTypes = new ArrayList<>();
-        payloadTypes.add(Map.of("name", "hyperliquidChain", "type", "string"));
-        payloadTypes.add(Map.of("name", "destination", "type", "string"));
-        payloadTypes.add(Map.of("name", "sourceDex", "type", "string"));
-        payloadTypes.add(Map.of("name", "destinationDex", "type", "string"));
-        payloadTypes.add(Map.of("name", "token", "type", "string"));
-        payloadTypes.add(Map.of("name", "amount", "type", "string"));
-        payloadTypes.add(Map.of("name", "fromSubAccount", "type", "string"));
-        payloadTypes.add(Map.of("name", "nonce", "type", "uint64"));
+        List<Map<String, Object>> payloadTypes = List.of(
+                Map.of("name", "hyperliquidChain", "type", "string"),
+                Map.of("name", "destination", "type", "string"),
+                Map.of("name", "sourceDex", "type", "string"),
+                Map.of("name", "destinationDex", "type", "string"),
+                Map.of("name", "token", "type", "string"),
+                Map.of("name", "amount", "type", "string"),
+                Map.of("name", "fromSubAccount", "type", "string"),
+                Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
                 wallet,
@@ -643,11 +679,11 @@ public class Exchange {
         action.put("maxFeeRate", maxFeeRate);
         action.put("nonce", nonce);
 
-        List<Map<String, Object>> payloadTypes = new ArrayList<>();
-        payloadTypes.add(Map.of("name", "hyperliquidChain", "type", "string"));
-        payloadTypes.add(Map.of("name", "maxFeeRate", "type", "string"));
-        payloadTypes.add(Map.of("name", "builder", "type", "address"));
-        payloadTypes.add(Map.of("name", "nonce", "type", "uint64"));
+        List<Map<String, Object>> payloadTypes = List.of(
+                Map.of("name", "hyperliquidChain", "type", "string"),
+                Map.of("name", "maxFeeRate", "type", "string"),
+                Map.of("name", "builder", "type", "address"),
+                Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
                 wallet,
@@ -671,10 +707,10 @@ public class Exchange {
         action.put("code", code);
         action.put("nonce", nonce);
 
-        List<Map<String, Object>> payloadTypes = new ArrayList<>();
-        payloadTypes.add(Map.of("name", "hyperliquidChain", "type", "string"));
-        payloadTypes.add(Map.of("name", "code", "type", "string"));
-        payloadTypes.add(Map.of("name", "nonce", "type", "uint64"));
+        List<Map<String, Object>> payloadTypes = List.of(
+                Map.of("name", "hyperliquidChain", "type", "string"),
+                Map.of("name", "code", "type", "string"),
+                Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
                 wallet,
@@ -702,12 +738,12 @@ public class Exchange {
         action.put("isUndelegate", isUndelegate);
         action.put("nonce", nonce);
 
-        List<Map<String, Object>> payloadTypes = new ArrayList<>();
-        payloadTypes.add(Map.of("name", "hyperliquidChain", "type", "string"));
-        payloadTypes.add(Map.of("name", "validator", "type", "address"));
-        payloadTypes.add(Map.of("name", "wei", "type", "uint64"));
-        payloadTypes.add(Map.of("name", "isUndelegate", "type", "bool"));
-        payloadTypes.add(Map.of("name", "nonce", "type", "uint64"));
+        List<Map<String, Object>> payloadTypes = List.of(
+                Map.of("name", "hyperliquidChain", "type", "string"),
+                Map.of("name", "validator", "type", "address"),
+                Map.of("name", "wei", "type", "uint64"),
+                Map.of("name", "isUndelegate", "type", "bool"),
+                Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
                 wallet,
@@ -731,10 +767,10 @@ public class Exchange {
         action.put("signers", signersJson);
         action.put("nonce", nonce);
 
-        List<Map<String, Object>> payloadTypes = new ArrayList<>();
-        payloadTypes.add(Map.of("name", "hyperliquidChain", "type", "string"));
-        payloadTypes.add(Map.of("name", "signers", "type", "string"));
-        payloadTypes.add(Map.of("name", "nonce", "type", "uint64"));
+        List<Map<String, Object>> payloadTypes = List.of(
+                Map.of("name", "hyperliquidChain", "type", "string"),
+                Map.of("name", "signers", "type", "string"),
+                Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
                 wallet,
@@ -766,7 +802,7 @@ public class Exchange {
      * SpotDeploy: 注册 Token（registerToken2）
      */
     public JsonNode spotDeployRegisterToken(String tokenName, int szDecimals, int weiDecimals, int maxGas,
-                                            String fullName) {
+            String fullName) {
         Map<String, Object> action = new LinkedHashMap<>();
         Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("name", tokenName);
@@ -791,7 +827,8 @@ public class Exchange {
      *
      * @param token               Token ID
      * @param userAndWei          用户与 Wei 金额列表，形如 [[user,addressLower],[wei,string]]
-     * @param existingTokenAndWei 既有 Token 与 Wei 金额列表，形如 [[tokenId,int],[wei,string]]
+     * @param existingTokenAndWei 既有 Token 与 Wei 金额列表，形如
+     *                            [[tokenId,int],[wei,string]]
      * @return JSON 响应
      */
     public JsonNode spotDeployUserGenesis(int token, List<String[]> userAndWei, List<Object[]> existingTokenAndWei) {
@@ -948,7 +985,7 @@ public class Exchange {
     }
 
     /**
-     * SpotDeploy: 注册       uidity 做市
+     * SpotDeploy: 注册 uidity 做市
      */
     /**
      * SpotDeploy: 注册 Hyperliquidity 做市。
@@ -961,7 +998,7 @@ public class Exchange {
      * @return JSON 响应
      */
     public JsonNode spotDeployRegisterHyperliquidity(int spot, double startPx, double orderSz, int nOrders,
-                                                     Integer nSeededLevels) {
+            Integer nSeededLevels) {
         Map<String, Object> register = new LinkedHashMap<>();
         register.put("spot", spot);
         register.put("startPx", String.valueOf(startPx));
@@ -1028,11 +1065,11 @@ public class Exchange {
         }
 
         // ApproveAgent payload types
-        List<Map<String, Object>> payloadTypes = new ArrayList<>();
-        payloadTypes.add(Map.of("name", "hyperliquidChain", "type", "string"));
-        payloadTypes.add(Map.of("name", "agentAddress", "type", "address"));
-        payloadTypes.add(Map.of("name", "agentName", "type", "string"));
-        payloadTypes.add(Map.of("name", "nonce", "type", "uint64"));
+        List<Map<String, Object>> payloadTypes = List.of(
+                Map.of("name", "hyperliquidChain", "type", "string"),
+                Map.of("name", "agentAddress", "type", "address"),
+                Map.of("name", "agentName", "type", "string"),
+                Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
                 wallet,
@@ -1156,36 +1193,32 @@ public class Exchange {
         Boolean cached = dexEnabledCache.getIfPresent(address);
         if (cached != null && cached)
             return;
+
+        boolean enabled = false;
         try {
             JsonNode state = info.queryUserDexAbstractionState(address);
-            boolean enabled = isDexEnabled(state);
-            if (!enabled) {
-                // 先尝试用户签名方式开启开关
-                try {
-                    JsonNode userToggle = userDexAbstraction(address, true);
-                    enabled = isOk(userToggle) || isAlreadySet(userToggle);
-                } catch (Exception ignored) {
-                }
-            }
-            if (!enabled) {
-                JsonNode resp = agentEnableDexAbstraction();
-                enabled = isOk(resp) || isAlreadySet(resp);
-            }
-            if (enabled)
-                dexEnabledCache.put(address, Boolean.TRUE);
-        } catch (Exception ignore) {
+            enabled = isDexEnabled(state);
+        } catch (Exception ignored) {
+        }
+
+        if (!enabled) {
             try {
-                try {
-                    JsonNode userToggle = userDexAbstraction(wallet.getAddress().toLowerCase(), true);
-                    if (isOk(userToggle) || isAlreadySet(userToggle))
-                        dexEnabledCache.put(wallet.getAddress().toLowerCase(), Boolean.TRUE);
-                } catch (Exception ignored) {
-                }
-                JsonNode resp = agentEnableDexAbstraction();
-                if (isOk(resp) || isAlreadySet(resp))
-                    dexEnabledCache.put(address, Boolean.TRUE);
+                JsonNode userToggle = userDexAbstraction(address, true);
+                enabled = isOk(userToggle) || isAlreadySet(userToggle);
             } catch (Exception ignored) {
             }
+        }
+
+        if (!enabled) {
+            try {
+                JsonNode resp = agentEnableDexAbstraction();
+                enabled = isOk(resp) || isAlreadySet(resp);
+            } catch (Exception ignored) {
+            }
+        }
+
+        if (enabled) {
+            dexEnabledCache.put(address, Boolean.TRUE);
         }
     }
 
@@ -1211,7 +1244,9 @@ public class Exchange {
     }
 
     private void marketOpenTransition(OrderRequest req) {
-        if (req.getLimitPx() == null && req.getOrderType().getLimit() != null &&
+        if (req == null)
+            return;
+        if (req.getLimitPx() == null && req.getOrderType() != null && req.getOrderType().getLimit() != null &&
                 req.getOrderType().getLimit().getTif() == Tif.IOC) {
             double slipPx = computeSlippagePrice(req.getCoin(), req.getIsBuy(), req.getSlippage());
             req.setLimitPx(slipPx);
@@ -1252,11 +1287,14 @@ public class Exchange {
         BigDecimal bd = BigDecimal.valueOf(adjusted);
         bd = bd.round(new MathContext(5, RoundingMode.HALF_UP));
 
-        // 根据 perp 的精度规则进一步四舍五入：decimals = 6 - szDecimals
-        Meta.Universe metaUniverse = info.getMetaUniverse(coin);
-        Integer szDecimals = metaUniverse.getSzDecimals();
+        Integer szDecimals = szDecimalsCache.getIfPresent(coin);
         if (szDecimals == null) {
-            throw new HypeError("Failed to get szDecimals from Meta.Universe, coin: " + coin);
+            Meta.Universe metaUniverse = info.getMetaUniverse(coin);
+            szDecimals = metaUniverse.getSzDecimals();
+            if (szDecimals == null) {
+                throw new HypeError("Failed to get szDecimals from Meta.Universe, coin: " + coin);
+            }
+            szDecimalsCache.put(coin, szDecimals);
         }
         int decimals = 6 - szDecimals;
         if (decimals < 0) {
