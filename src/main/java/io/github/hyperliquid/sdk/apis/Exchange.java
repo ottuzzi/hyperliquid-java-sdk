@@ -190,29 +190,25 @@ public class Exchange {
      * @param req 下单请求（仅当 instrumentType=PERP 且 limitPx 非空时生效）
      */
     private void normalizePerpLimitPx(OrderRequest req) {
-        if (req == null)
-            return;
-        if (req.getInstrumentType() != InstrumentType.PERP)
-            return;
+        if (req == null) return;
+        if (req.getInstrumentType() != InstrumentType.PERP) return;
         Double px = req.getLimitPx();
-        if (px == null)
-            return;
+        if (px == null) return;
         String coin = req.getCoin();
         Integer szDecimals = szDecimalsCache.getIfPresent(coin);
         if (szDecimals == null) {
             Meta.Universe mu = info.getMetaUniverse(coin);
             szDecimals = mu.getSzDecimals();
-            if (szDecimals != null)
+            if (szDecimals != null) {
                 szDecimalsCache.put(coin, szDecimals);
+            }
         }
-        if (szDecimals == null)
-            return;
+        if (szDecimals == null) return;
         int decimals = 6 - szDecimals;
         if (decimals < 0)
             decimals = 0;
-        java.math.BigDecimal bd = java.math.BigDecimal.valueOf(px)
-                .round(new java.math.MathContext(5, java.math.RoundingMode.HALF_UP))
-                .setScale(decimals, java.math.RoundingMode.HALF_UP);
+        BigDecimal bd = BigDecimal.valueOf(px).round(new MathContext(5, RoundingMode.HALF_UP))
+                .setScale(decimals, RoundingMode.HALF_UP);
         req.setLimitPx(bd.doubleValue());
     }
 
@@ -1446,8 +1442,9 @@ public class Exchange {
      */
     public Order closePositionLimitAll(Tif tif, String coin, double limitPx, Cloid cloid) {
         double szi = inferSignedPosition(coin);
-        if (szi == 0.0)
+        if (szi == 0.0) {
             throw new HypeError("No position to close for coin " + coin);
+        }
         boolean isBuy = szi < 0.0;
         double absSz = Math.abs(szi);
         OrderRequest req = OrderRequest.Close.limit(tif, coin, szi, limitPx, cloid);
