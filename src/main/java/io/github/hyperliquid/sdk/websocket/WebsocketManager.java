@@ -27,34 +27,97 @@ public class WebsocketManager {
     private static final Logger LOG = Logger.getLogger(WebsocketManager.class.getName());
 
     /**
-     * 原始 API 根地址（http/https），用于网络可用性检测
+     * 原始 API 根地址（http/https），用于网络可用性探测
      */
     private final String baseUrl;
+    /**
+     * WebSocket 连接地址（从 baseUrl 推导）
+     */
     private final String wsUrl;
+    /**
+     * 网络探测地址（可选，设置后覆盖 baseUrl 进行探测）
+     */
     private String probeUrl;
+    /**
+     * 是否禁用网络探测（禁用后视为始终可用）
+     */
     private boolean probeDisabled = false;
+    /**
+     * WebSocket 主客户端（用于建立与管理 WS 连接）
+     */
     private final OkHttpClient client;
+    /**
+     * 当前 WebSocket 连接实例
+     */
     private WebSocket webSocket;
+    /**
+     * 是否已停止管理器（停止后不再进行重连）
+     */
     private volatile boolean stopped = false;
+    /**
+     * 当前连接是否已建立
+     */
     private volatile boolean connected = false;
+    /**
+     * 是否处于重连流程中
+     */
     private volatile boolean reconnecting = false;
 
-    // 重连控制参数
+
+    /**
+     * 已尝试的重连次数
+     */
     private int reconnectAttempts = 0;
-    private int maxReconnectAttempts = 5; // 可配置，默认 5 次
-    private long backoffMs = 1_000L; // 初始 1s（可配置）
-    private long initialBackoffMs = backoffMs; // 记录初始值，便于连接成功后重置
-    private final long maxBackoffMs = 30_000L; // 内部最大 30s 上限
-    private long configMaxBackoffMs = maxBackoffMs; // 可配置最大上限，默认与内部一致
+    /**
+     * 最大重连尝试次数（可配置，默认 5 次）
+     */
+    private int maxReconnectAttempts = 5;
+    /**
+     * 当前重连延迟毫秒数（指数退避）初始 1s（可配置）
+     */
+    private long backoffMs = 1_000L;
+    /**
+     * 初始重连延迟毫秒（连接成功后会重置为该值）
+     */
+    private long initialBackoffMs = backoffMs;
+    /**
+     * 内部最大退避上限毫秒（固定 30s）
+     */
+    private final long maxBackoffMs = 30_000L;
+    /**
+     * 外部配置的最大退避上限毫秒（不超过内部上限）
+     */
+    private long configMaxBackoffMs = maxBackoffMs;
+    /**
+     * 计划中的重连任务引用
+     */
     private volatile ScheduledFuture<?> reconnectFuture;
 
-    // 网络状态监控
+
+    /**
+     * 当前网络探测状态（true 表示可用）
+     */
     private volatile boolean networkAvailable = true;
+    /**
+     * 网络状态检查的间隔秒数（默认 5 秒）
+     */
     private int networkCheckIntervalSeconds = 5;
+    /**
+     * 网络监控任务引用（断线时周期探测）
+     */
     private volatile ScheduledFuture<?> networkMonitorFuture;
+    /**
+     * 网络探测用轻量 HTTP 客户端（短超时）
+     */
     private final OkHttpClient networkClient;
 
+    /**
+     * 活跃订阅集合，按标识符分组存储并去重
+     */
     private final Map<String, List<ActiveSubscription>> subscriptions = new ConcurrentHashMap<>();
+    /**
+     * 定时任务调度器（用于心跳、重连与网络监控）
+     */
     private final ScheduledThreadPoolExecutor scheduler = new ScheduledThreadPoolExecutor(1);
 
     /**
