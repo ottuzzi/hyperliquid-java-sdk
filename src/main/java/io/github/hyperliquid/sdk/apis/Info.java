@@ -206,7 +206,15 @@ public class Info {
     public L2Book l2Book(String coin, Integer nSigFigs, Integer mantissa) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "l2Book");
-        payload.put("coin", coin);
+        String effectiveCoin = coin;
+        if (effectiveCoin != null && !effectiveCoin.startsWith("@")) {
+            try {
+                Integer assetId = nameToAsset(effectiveCoin);
+                effectiveCoin = coinIdToInfoCoinString(assetId);
+            } catch (Exception ignored) {
+            }
+        }
+        payload.put("coin", effectiveCoin);
         if (nSigFigs != null) {
             payload.put("nSigFigs", nSigFigs);
         }
@@ -247,7 +255,15 @@ public class Info {
      */
     public List<Candle> candleSnapshot(String coin, CandleInterval interval, Long startTime, Long endTime) {
         Map<String, Object> req = new LinkedHashMap<>();
-        req.put("coin", coin);
+        String effectiveCoin = coin;
+        if (effectiveCoin != null && !effectiveCoin.startsWith("@")) {
+            try {
+                Integer assetId = nameToAsset(effectiveCoin);
+                effectiveCoin = coinIdToInfoCoinString(assetId);
+            } catch (Exception ignored) {
+            }
+        }
+        req.put("coin", effectiveCoin);
         req.put("interval", interval.getCode());
         req.put("startTime", startTime);
         req.put("endTime", endTime);
@@ -395,7 +411,15 @@ public class Info {
     public JsonNode fundingHistory(String coin, long startMs, long endMs) {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "fundingHistory");
-        payload.put("coin", coin);
+        String effectiveCoin = coin;
+        if (effectiveCoin != null && !effectiveCoin.startsWith("@")) {
+            try {
+                Integer assetId = nameToAsset(effectiveCoin);
+                effectiveCoin = coinIdToInfoCoinString(assetId);
+            } catch (Exception ignored) {
+            }
+        }
+        payload.put("coin", effectiveCoin);
         payload.put("startTime", startMs);
         payload.put("endTime", endMs);
         return postInfo(payload);
@@ -445,9 +469,19 @@ public class Info {
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("type", "userFunding");
         payload.put("user", address);
-        payload.put("coin", coin);
         payload.put("startTime", startMs);
         payload.put("endTime", endMs);
+        return postInfo(payload);
+    }
+
+    public JsonNode userFundingHistory(String address, long startMs, Long endMs) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", "userFunding");
+        payload.put("user", address);
+        payload.put("startTime", startMs);
+        if (endMs != null) {
+            payload.put("endTime", endMs);
+        }
         return postInfo(payload);
     }
 

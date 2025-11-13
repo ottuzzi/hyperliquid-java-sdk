@@ -370,7 +370,7 @@ public class Exchange {
     public JsonNode cancelByCloid(String coinName, Cloid cloid) {
         int assetId = ensureAssetId(coinName);
         Map<String, Object> cancel = new LinkedHashMap<>();
-        cancel.put("coin", assetId);
+        cancel.put("asset", assetId);
         cancel.put("cloid", cloid == null ? null : cloid.getRaw());
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "cancelByCloid");
@@ -391,11 +391,23 @@ public class Exchange {
         int assetId = ensureAssetId(coinName);
         OrderWire wire = Signing.orderRequestToOrderWire(assetId, newReq);
         Map<String, Object> modify = new LinkedHashMap<>();
-        modify.put("coin", assetId);
         modify.put("oid", oid);
         modify.put("order", wire);
         Map<String, Object> action = new LinkedHashMap<>();
-        action.put("type", "modifyOrder");
+        action.put("type", "batchModify");
+        action.put("modifies", List.of(modify));
+        return postAction(action);
+    }
+
+    public JsonNode modifyOrder(String coinName, Cloid cloid, OrderRequest newReq) {
+        ensureDexAbstractionEnabled();
+        int assetId = ensureAssetId(coinName);
+        OrderWire wire = Signing.orderRequestToOrderWire(assetId, newReq);
+        Map<String, Object> modify = new LinkedHashMap<>();
+        modify.put("oid", cloid == null ? null : cloid.getRaw());
+        modify.put("order", wire);
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "batchModify");
         action.put("modifies", List.of(modify));
         return postAction(action);
     }
@@ -409,21 +421,7 @@ public class Exchange {
      */
     private Map<String, Object> buildOrderAction(List<OrderWire> wires, Map<String, Object> builder) {
         Map<String, Object> action = Signing.orderWiresToOrderAction(wires);
-        // 根据是否为触发单选择合适的分组：触发单使用 "normalTpsl"，其余使用 "na"
-        String grouping = "na";
-        Object ordersObj = action.get("orders");
-        if (ordersObj instanceof java.util.List<?> list) {
-            for (Object o : list) {
-                if (o instanceof java.util.Map<?, ?> m) {
-                    Object t = m.get("t");
-                    if (t instanceof java.util.Map<?, ?> tm && tm.containsKey("trigger")) {
-                        grouping = "normalTpsl";
-                        break;
-                    }
-                }
-            }
-        }
-        action.put("grouping", grouping);
+        // 保持 Signing.orderWiresToOrderAction 中的默认分组 "na"，不覆写
 
         if (builder != null && !builder.isEmpty()) {
             // 仅保留官方文档允许的字段：b（地址）与 f（费用）；其余键将被忽略，避免 422 反序列化失败
@@ -551,7 +549,7 @@ public class Exchange {
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "usdSend");
         action.put("destination", destination);
-        action.put("amount", String.valueOf(Signing.floatToUsdInt(amount)));
+        action.put("amount", String.valueOf(amount));
         action.put("time", time);
 
         List<Map<String, Object>> payloadTypes = List.of(
@@ -643,7 +641,11 @@ public class Exchange {
         long nonce = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "usdClassTransfer");
-        action.put("amount", String.valueOf(Signing.floatToUsdInt(amount)));
+        String strAmount = String.valueOf(amount);
+        if (this.vaultAddress != null && !this.vaultAddress.isEmpty()) {
+            strAmount = strAmount + " subaccount:" + this.vaultAddress;
+        }
+        action.put("amount", strAmount);
         action.put("toPerp", toPerp);
         action.put("nonce", nonce);
 
@@ -683,7 +685,8 @@ public class Exchange {
         action.put("destinationDex", destinationDex);
         action.put("token", token);
         action.put("amount", amount);
-        action.put("fromSubAccount", fromSubAccount);
+        String from = fromSubAccount != null ? fromSubAccount : (this.vaultAddress != null ? this.vaultAddress : "");
+        action.put("fromSubAccount", from);
         action.put("nonce", nonce);
 
         List<Map<String, Object>> payloadTypes = List.of(
@@ -1111,10 +1114,7 @@ public class Exchange {
         long nonce = Signing.getTimestampMs();
 
         String type = String.valueOf(action.getOrDefault("type", ""));
-        boolean tradingAction = "order".equals(type) || "cancel".equals(type) || "cancelByCloid".equals(type)
-                || "modifyOrder".equals(type) || "scheduleCancel".equals(type) || "updateLeverage".equals(type);
-        String effectiveVault = ("usdClassTransfer".equals(type) || "sendAsset".equals(type) || tradingAction) ? null
-                : vaultAddress;
+        String effectiveVault = ("usdClassTransfer".equals(type) || "sendAsset".equals(type)) ? null : vaultAddress;
         if (effectiveVault != null) {
             effectiveVault = effectiveVault.toLowerCase();
             String signerAddr = wallet.getAddress().toLowerCase();
@@ -1141,7 +1141,6 @@ public class Exchange {
         payload.put("nonce", nonce);
         payload.put("signature", signature);
         payload.put("vaultAddress", effectiveVault);
-        // L1 普通动作（本方法内签名）支持 expiresAfter，直接传递；用户签名动作的特殊处理在 postActionWithSignature 中完成
         payload.put("expiresAfter", ea);
 
         return hypeHttpClient.post("/exchange", payload);
@@ -1158,19 +1157,7 @@ public class Exchange {
      */
     private JsonNode postActionWithSignature(Map<String, Object> action, Map<String, Object> signature, long nonce) {
         String type = String.valueOf(action.getOrDefault("type", ""));
-        boolean userSigned = "approveAgent".equals(type)
-                || "userDexAbstraction".equals(type)
-                || "usdSend".equals(type)
-                || "withdraw3".equals(type)
-                || "spotSend".equals(type)
-                || "usdClassTransfer".equals(type)
-                || "sendAsset".equals(type)
-                || "approveBuilderFee".equals(type)
-                || "setReferrer".equals(type)
-                || "tokenDelegate".equals(type)
-                || "convertToMultiSigUser".equals(type);
-        String effectiveVault = ("usdClassTransfer".equals(type) || "sendAsset".equals(type) || userSigned) ? null
-                : vaultAddress;
+        String effectiveVault = ("usdClassTransfer".equals(type) || "sendAsset".equals(type)) ? null : vaultAddress;
 
         Map<String, Object> payload = new LinkedHashMap<>();
         // 保持用户签名动作的 action 原样发送（包含 signatureChainId 与 hyperliquidChain），与 Python
@@ -1178,10 +1165,8 @@ public class Exchange {
         payload.put("action", action);
         payload.put("nonce", nonce);
         payload.put("signature", signature);
-        if (!userSigned) {
-            payload.put("vaultAddress", effectiveVault);
-            payload.put("expiresAfter", expiresAfter);
-        }
+        payload.put("vaultAddress", effectiveVault);
+        payload.put("expiresAfter", expiresAfter);
         return hypeHttpClient.post("/exchange", payload);
     }
 
