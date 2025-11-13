@@ -3,25 +3,55 @@ package io.github.hyperliquid.sdk.model.order;
 import lombok.Data;
 
 /**
- * 下单请求结构。
+ * 下单请求结构（Java 侧语义化表示）。
+ *
+ * 说明：
+ * - 与 Python SDK 的 `OrderRequest` 对齐：coin/is_buy/sz/limit_px/order_type/reduce_only/cloid；
+ * - 市价单在协议层以“限价 + IOC”表达，`limitPx` 可为空，价格由业务层根据中间价及滑点计算；
+ * - 触发单通过 `orderType.trigger` 承载触发参数；
+ * - 最终会被转换为线缆结构并发送（见 `utils.Signing.orderRequestToOrderWire`）。
  */
 @Data
 public class OrderRequest {
 
     /**
-     * 交易品种类型
+     * 交易品种类型（PERP 永续 / SPOT 现货）
      **/
     private final InstrumentType instrumentType;
+    /**
+     * 币种名称（例如 "ETH"、"BTC"）
+     **/
     private final String coin;
+    /**
+     * 是否买入（true=买/做多，false=卖/做空）；市价平仓场景可为空，交由业务层自动推断
+     **/
     private final Boolean isBuy;
+    /**
+     * 下单数量（浮点）；最终会规范化为字符串（8 位小数内）
+     **/
     private final Double sz;
-    private Double limitPx; // 可为 null（市价）或与触发单组合
-    private final OrderType orderType; // 可为 null（普通限价/市价）
+    /**
+     * 限价价格；
+     * - 可为空（市价单或触发单的市价执行）；
+     * - PERP 价格会在 Exchange 层按“5 位有效数字 + (6 - szDecimals) 小数位”规范化。
+     **/
+    private Double limitPx;
+    /**
+     * 订单类型：限价（TIF）或触发（triggerPx/isMarket/tpsl）；可为空表示普通限价/市价默认行为
+     **/
+    private final OrderType orderType;
+    /**
+     * 仅减仓标记（true 表示不会增加仓位）；用于平仓或触发减仓
+     **/
     private final Boolean reduceOnly;
-    private final Cloid cloid; // 可为 null
+    /**
+     * 客户端订单 ID（Cloid），可为空
+     **/
+    private final Cloid cloid;
 
     /**
-     * 市价下单 滑点比例，例如 0.05 代表 5%
+     * 市价下单滑点比例（例如 0.05 表示 5%）；
+     * 仅用于业务层模拟“市价=带滑点的 IOC 限价”时计算占位价格
      **/
     private Double slippage = 0.05;
 

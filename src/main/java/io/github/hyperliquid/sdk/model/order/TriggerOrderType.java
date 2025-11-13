@@ -3,11 +3,15 @@ package io.github.hyperliquid.sdk.model.order;
 import lombok.Getter;
 
 /**
- * 触发单类型（止盈/止损/触发价与是否市价）。
+ * 触发单类型：承载触发价、是否按市价执行、止盈/止损类型。
+ * 与 Python `TriggerOrderType` 对齐（triggerPx/isMarket/tpsl）。
  */
 public class TriggerOrderType {
+    /** 触发价格（浮点，最终会规范化为字符串） */
     private final Double triggerPx;
+    /** 触发后是否以市价执行（true=市价触发；false=限价触发） */
     private final Boolean isMarket;
+    /** 止盈/止损类型 */
     private final TpslType tpsl;
 
     /**
@@ -46,10 +50,12 @@ public class TriggerOrderType {
         this.tpsl = tpsl;
     }
 
+    /** 获取触发价格 */
     public double getTriggerPx() {
         return triggerPx;
     }
 
+    /** 是否以市价触发执行 */
     public boolean isMarket() {
         return isMarket;
     }

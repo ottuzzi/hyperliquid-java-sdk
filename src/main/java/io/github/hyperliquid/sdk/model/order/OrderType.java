@@ -1,7 +1,8 @@
 package io.github.hyperliquid.sdk.model.order;
 
 /**
- * 订单类型封装（可选限价单与可选触发单组合）。
+ * 订单类型封装：限价（TIF）与触发（TPSL）可二择一；
+ * 若同时存在，仅后端定义的解析行为生效（一般不同时设置）。
  */
 public class OrderType {
 
@@ -57,7 +58,7 @@ public class OrderType {
     /**
      * 获取限价单类型。
      *
-     * @return Optional 包装的限价单类型
+     * @return 限价单类型（可能为 null）
      */
     public LimitOrderType getLimit() {
         return limit;
@@ -66,7 +67,7 @@ public class OrderType {
     /**
      * 获取触发单类型。
      *
-     * @return Optional 包装的触发单类型
+     * @return 触发单类型（可能为 null）
      */
     public TriggerOrderType getTrigger() {
         return trigger;
