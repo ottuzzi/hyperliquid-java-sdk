@@ -7,7 +7,10 @@ import io.github.hyperliquid.sdk.utils.HypeError;
 import io.github.hyperliquid.sdk.utils.HypeHttpClient;
 import okhttp3.OkHttpClient;
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.ECKeyPair;
+import org.web3j.utils.Numeric;
 
+import java.math.BigInteger;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -162,12 +165,43 @@ public class HyperliquidClient {
             Map<String, String> privateKeyMap = new LinkedHashMap<>();
             if (!privateKeys.isEmpty()) {
                 for (String key : privateKeys) {
+                    validatePrivateKey(key);
                     Credentials credentials = Credentials.create(key);
                     privateKeyMap.put(key, credentials.getAddress());
                     exchangeMap.put(key, new Exchange(hypeHttpClient, credentials, info));
                 }
             }
             return new HyperliquidClient(info, exchangeMap, privateKeyMap);
+        }
+
+
+        /**
+         * 私钥验证逻辑：
+         * 1. 不为空
+         * 2. 长度与字符集合法
+         * 3. 能被 Web3j 正常解析为 ECKeyPair
+         */
+        private void validatePrivateKey(String privateKey) {
+            if (privateKey == null || privateKey.trim().isEmpty()) {
+                throw new HypeError("Private key cannot be null or empty.");
+            }
+
+            String normalizedKey = privateKey.startsWith("0x") ? privateKey.substring(2) : privateKey;
+
+            if (!normalizedKey.matches("^[0-9a-fA-F]+$")) {
+                throw new HypeError("Private key contains invalid characters. Must be hex.");
+            }
+
+            if (normalizedKey.length() != 64) {
+                throw new HypeError("Private key must be 64 hexadecimal characters long.");
+            }
+
+            try {
+                BigInteger keyInt = Numeric.toBigInt(privateKey);
+                ECKeyPair.create(keyInt);
+            } catch (Exception e) {
+                throw new HypeError("Invalid private key: cryptographic validation failed.", e);
+            }
         }
     }
 }
