@@ -10,7 +10,7 @@
     <name>Hyperliquid Java SDK</name>
     <description>Pure Java SDK for Hyperliquid: Info queries, WebSocket subscriptions, order placement and signing.</description>
     <url>https://github.com/heiye115/hyperliquid-java-sdk</url>
-
+    <packaging>jar</packaging>
     <!-- Maven Central required metadata -->
     <licenses>
         <license>
@@ -45,13 +45,6 @@
         <url>https://github.com/heiye115/hyperliquid-java-sdk/issues</url>
     </issueManagement>
 
-    <distributionManagement>
-        <repository>
-            <id>central</id>
-            <url>https://central.sonatype.com/api/v1/publishing</url>
-        </repository>
-    </distributionManagement>
-
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
         <maven.compiler.target>21</maven.compiler.target>
@@ -66,7 +59,6 @@
         <project.build.outputTimestamp>2025-01-01T00:00:00Z</project.build.outputTimestamp>
         <!-- Central Portal 自动发布设置 -->
         <central.autoPublish>false</central.autoPublish>
-        <maven.javadoc.skip>true</maven.javadoc.skip>
         <slf4j.version>2.0.17</slf4j.version>
         <caffeine.version>3.2.3</caffeine.version>
     </properties>
@@ -163,7 +155,7 @@
             </resource>
         </resources>
         <plugins>
-            <!-- Compiler Plugin -->
+            <!-- Compiler -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
@@ -177,7 +169,7 @@
                 </configuration>
             </plugin>
 
-            <!-- JAR Plugin -->
+            <!-- JAR -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jar-plugin</artifactId>
@@ -191,100 +183,68 @@
                 </configuration>
             </plugin>
 
-            <!-- Surefire Test Plugin -->
+            <!-- Surefire -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>3.2.5</version>
-                <configuration>
-                    <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
-                    <useSystemClassLoader>true</useSystemClassLoader>
-                </configuration>
             </plugin>
 
-            <!-- JaCoCo Code Coverage -->
+            <!-- Jacoco -->
             <plugin>
                 <groupId>org.jacoco</groupId>
                 <artifactId>jacoco-maven-plugin</artifactId>
                 <version>0.8.10</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>prepare-agent</goal>
-                        </goals>
-                    </execution>
-                    <execution>
-                        <id>report</id>
-                        <phase>test</phase>
-                        <goals>
-                            <goal>report</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- Source Plugin -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-source-plugin</artifactId>
-                <version>3.3.1</version>
-                <executions>
-                    <execution>
-                        <id>attach-sources</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
-            </plugin>
-
-            <!-- Javadoc Plugin -->
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.12.0</version>
-                <configuration>
-                    <source>${maven.compiler.source}</source>
-                    <doclint>none</doclint>
-                    <encoding>${project.build.sourceEncoding}</encoding>
-                    <docencoding>UTF-8</docencoding>
-                    <!-- 如果仍有边缘告警，确保不因告警而失败 -->
-                    <failOnError>false</failOnError>
-                    <!-- 支持通过 -Dmaven.javadoc.skip=true 在 package 时跳过 javadoc 生成 -->
-                    <skip>${maven.javadoc.skip}</skip>
-                </configuration>
-                <executions>
-                    <execution>
-                        <id>attach-javadocs</id>
-                        <phase>verify</phase>
-                        <goals>
-                            <goal>jar</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
 
-    <!-- Central Portal Publishing Profile -->
+
     <profiles>
         <profile>
             <id>central</id>
-            <!-- 在 Central 发布配置中显式开启 javadoc 生成，满足 Central Portal 对 javadocs 的要求 -->
-            <properties>
-                <maven.javadoc.skip>false</maven.javadoc.skip>
-            </properties>
+
             <build>
                 <plugins>
-                    <!-- GPG 插件移到发布profile中 -->
+
+                    <!-- Source -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-source-plugin</artifactId>
+                        <version>3.3.1</version>
+                        <executions>
+                            <execution>
+                                <id>attach-sources</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Javadoc -->
+                    <plugin>
+                        <groupId>org.apache.maven.plugins</groupId>
+                        <artifactId>maven-javadoc-plugin</artifactId>
+                        <version>3.12.0</version>
+                        <configuration>
+                            <failOnError>false</failOnError>
+                        </configuration>
+                        <executions>
+                            <execution>
+                                <id>attach-javadocs</id>
+                                <goals>
+                                    <goal>jar</goal>
+                                </goals>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- GPG Sign -->
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
                         <version>3.1.0</version>
-                        <configuration>
-                            <executable>D:\Applications\GnuPG\bin\gpg.exe</executable>
-                        </configuration>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -292,22 +252,24 @@
                                 <goals>
                                     <goal>sign</goal>
                                 </goals>
+                                <configuration>
+                                    <executable>D:\Applications\GnuPG\bin\gpg.exe</executable>
+                                </configuration>
                             </execution>
                         </executions>
                     </plugin>
-                    <!-- Central Publishing Plugin -->
+
+                    <!-- Sonatype 新中央发布插件 -->
                     <plugin>
                         <groupId>org.sonatype.central</groupId>
                         <artifactId>central-publishing-maven-plugin</artifactId>
                         <version>0.9.0</version>
                         <extensions>true</extensions>
-                        <configuration>
-                            <publishingServerId>central</publishingServerId>
-                            <autoPublish>${central.autoPublish}</autoPublish>
-                        </configuration>
                     </plugin>
+
                 </plugins>
             </build>
         </profile>
     </profiles>
+
 </project>
