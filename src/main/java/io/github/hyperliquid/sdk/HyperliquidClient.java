@@ -5,6 +5,7 @@ import io.github.hyperliquid.sdk.apis.Info;
 import io.github.hyperliquid.sdk.utils.Constants;
 import io.github.hyperliquid.sdk.utils.HypeError;
 import io.github.hyperliquid.sdk.utils.HypeHttpClient;
+import lombok.Getter;
 import okhttp3.OkHttpClient;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.ECKeyPair;
@@ -27,6 +28,7 @@ public class HyperliquidClient {
     /**
      * Info 客户端
      **/
+    @Getter
     private final Info info;
 
     /**
@@ -44,10 +46,6 @@ public class HyperliquidClient {
         this.info = info;
         this.exchangesByPrivateKey = exchangesByPrivateKey;
         this.addressesByPrivateKey = addressesByPrivateKey;
-    }
-
-    public Info getInfo() {
-        return info;
     }
 
     /**
