@@ -84,14 +84,21 @@ classDiagram
 <dependency>
     <groupId>io.github.heiye115</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
-    <version>0.2.0-beta1</version>
+    <version>0.2.0</version>
 </dependency>
 ```
 
 - Gradle（Groovy）：
 
 ```gradle
-implementation 'io.github.heiye115:hyperliquid-java-sdk:0.2.0-beta1'
+implementation 'io.github.heiye115:hyperliquid-java-sdk:0.2.0'
+```
+
+- 备选方案（若尚未发布到中央仓库）：JitPack
+
+```gradle
+repositories { maven { url 'https://jitpack.io' } }
+implementation 'com.github.heiye115:hyperliquid-java-sdk:main-SNAPSHOT'
 ```
 
 ## 5分钟快速开始
@@ -159,6 +166,51 @@ public class QuickStart {
     - `setNetworkCheckIntervalSeconds(int)`（`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:910`）。
     - `setReconnectBackoffMs(initialMs, maxMs)`（`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:924`）。
 
+## API 参考
+
+- HyperliquidClient
+    - `builder()`（`src/main/java/io/github/hyperliquid/sdk/HyperliquidClient.java:91`）
+    - `getInfo()`（`src/main/java/io/github/hyperliquid/sdk/HyperliquidClient.java:46`）
+    - `useExchange(privateKey)`（`src/main/java/io/github/hyperliquid/sdk/HyperliquidClient.java:63`）
+    - `getAddress(privateKey)`（`src/main/java/io/github/hyperliquid/sdk/HyperliquidClient.java:74`）
+- Info
+    - `l2Book(String coin)`（`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:225`）
+    - `subscribe(JsonNode, MessageCallback)`（`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:838`）
+    - 用户/账户状态：`clearinghouseState`、`userState`、`spotClearinghouseState`（见 `Info.java:591`, `Info.java:617`,
+      `Info.java:628`）。
+- Exchange
+    - `order(OrderRequest)` 及带 builder 重载（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:208`,
+      `Exchange.java:127`）。
+    - `bulkOrders(List<OrderRequest>)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:253`）。
+    - `cancel(String coin, long oid)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:264`）。
+    - `cancelByCloid(String coin, Cloid)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:283`）。
+    - `modifyOrder(String coin, long oid, OrderRequest)`（
+      `src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:302`）。
+    - `updateLeverage(String coin, boolean crossed, int leverage)`（
+      `src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:100`）。
+    - Dex Abstraction：`agentEnableDexAbstraction()` / `userDexAbstraction(user, enabled)`（
+      `src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:386`, `Exchange.java:409`）。
+    - `closePositionAtMarketAll(String coin)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:1429`）。
+    - `closePositionLimitAll(Tif, String coin, double limitPx, Cloid)`（
+      `src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:1443`）。
+    - 滑点配置：`setDefaultSlippage(double)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:1407`）与
+      `setDefaultSlippage(String coin, double)`（`src/main/java/io/github/hyperliquid/sdk/apis/Exchange.java:1417`）。
+    - OrderRequest
+        - `Open.limit(...)`（`src/main/java/io/github/hyperliquid/sdk/model/order/OrderRequest.java:123`）。
+        - `Open.market(...)`（`src/main/java/io/github/hyperliquid/sdk/model/order/OrderRequest.java:200`）。
+        - `Open.trigger(...)`（`src/main/java/io/github/hyperliquid/sdk/model/order/OrderRequest.java:219`）。
+        - `Close.limit(...)`（`src/main/java/io/github/hyperliquid/sdk/model/order/OrderRequest.java:331`）。
+        - `Close.market(String coin, Double sz, Cloid)`（
+          `src/main/java/io/github/hyperliquid/sdk/model/order/OrderRequest.java:379`）。
+        - `Close.positionAtMarketAll(String coin)`（
+          `src/main/java/io/github/hyperliquid/sdk/model/order/OrderRequest.java:493`）。
+- WebsocketManager
+    - `MessageCallback` 接口（`src/main/java/io/github/hyperliquid/sdk/websocket/WebsocketManager.java:106`）。
+    - 支持连接状态监听与回调异常监听。
+- HypeHttpClient
+    - `post(String, Object)` 携带 4xx/5xx 错误分类（
+      `src/main/java/io/github/hyperliquid/sdk/utils/HypeHttpClient.java:37`）。
+
 ## 贡献指南
 
 - Fork 仓库并创建功能分支。
@@ -171,7 +223,8 @@ public class QuickStart {
 
 - Apache License 2.0，详见 `LICENSE`。
 
-## 注意事项
+## 作者联系方式：
 
-- 切勿提交真实私钥，建议使用环境变量或安全密钥管理服务。
-- 主网与测试网基础 URL 定义见 `Constants`（`src/main/java/io/github/hyperliquid/sdk/utils/Constants.java:11`, `:16`）。
+- 微信：heiye5050
+- 邮箱：heiye115@gmail.com
+- Telegram：@heiye5050
