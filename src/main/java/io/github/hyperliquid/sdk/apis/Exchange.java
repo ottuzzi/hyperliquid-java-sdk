@@ -20,7 +20,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 /**
  * ExchangeClient 客户端，负责下单、撤单、转账等 L1/L2 操作。
@@ -55,14 +54,9 @@ public class Exchange {
     @Setter
     private Long expiresAfter;
 
-    private final Cache<String, Boolean> dexEnabledCache = Caffeine.newBuilder()
-            .maximumSize(1000)
-            .expireAfterWrite(30, TimeUnit.MINUTES)
-            .recordStats()
-            .build();
-
-    private static final Pattern ETH_ADDRESS_PATTERN = Pattern.compile("^0x[0-9a-f]{40}$");
-
+    /**
+     * 缓存资产精度
+     */
     private final Cache<String, Integer> szDecimalsCache = Caffeine.newBuilder()
             .maximumSize(1024)
             .expireAfterWrite(30, TimeUnit.MINUTES)
@@ -162,7 +156,6 @@ public class Exchange {
      * @throws HypeError 当服务端返回 status=err 时抛出（携带原始响应）
      */
     private Order innerOrder(OrderRequest req, Map<String, Object> builder) {
-        ensureDexAbstractionEnabled();
         OrderRequest effective = prepareRequest(req);
         marketOpenTransition(effective);
         normalizePerpLimitPx(effective);
@@ -190,13 +183,10 @@ public class Exchange {
      * @param req 下单请求（仅当 instrumentType=PERP 且 limitPx 非空时生效）
      */
     private void normalizePerpLimitPx(OrderRequest req) {
-        if (req == null)
-            return;
-        if (req.getInstrumentType() != InstrumentType.PERP)
-            return;
+        if (req == null) return;
+        if (req.getInstrumentType() != InstrumentType.PERP) return;
         Double px = req.getLimitPx();
-        if (px == null)
-            return;
+        if (px == null) return;
         String coin = req.getCoin();
         Integer szDecimals = szDecimalsCache.getIfPresent(coin);
         if (szDecimals == null) {
@@ -206,13 +196,11 @@ public class Exchange {
                 szDecimalsCache.put(coin, szDecimals);
             }
         }
-        if (szDecimals == null)
-            return;
+        if (szDecimals == null) return;
         int decimals = 6 - szDecimals;
         if (decimals < 0)
             decimals = 0;
-        BigDecimal bd = BigDecimal.valueOf(px).round(new MathContext(5, RoundingMode.HALF_UP))
-                .setScale(decimals, RoundingMode.HALF_UP);
+        BigDecimal bd = BigDecimal.valueOf(px).round(new MathContext(5, RoundingMode.HALF_UP)).setScale(decimals, RoundingMode.HALF_UP);
         req.setLimitPx(bd.doubleValue());
     }
 
@@ -353,7 +341,6 @@ public class Exchange {
      * @return 响应 JSON
      */
     public JsonNode cancel(String coinName, long oid) {
-        ensureDexAbstractionEnabled();
         int assetId = ensureAssetId(coinName);
         Map<String, Object> cancel = new LinkedHashMap<>();
         cancel.put("a", assetId);
@@ -391,7 +378,6 @@ public class Exchange {
      * @return 响应 JSON
      */
     public JsonNode modifyOrder(String coinName, long oid, OrderRequest newReq) {
-        ensureDexAbstractionEnabled();
         int assetId = ensureAssetId(coinName);
         OrderWire wire = Signing.orderRequestToOrderWire(assetId, newReq);
         Map<String, Object> modify = new LinkedHashMap<>();
@@ -404,7 +390,6 @@ public class Exchange {
     }
 
     public JsonNode modifyOrder(String coinName, Cloid cloid, OrderRequest newReq) {
-        ensureDexAbstractionEnabled();
         int assetId = ensureAssetId(coinName);
         OrderWire wire = Signing.orderRequestToOrderWire(assetId, newReq);
         Map<String, Object> modify = new LinkedHashMap<>();
@@ -433,11 +418,7 @@ public class Exchange {
             if (builder.containsKey("b")) {
                 Object bVal = builder.get("b");
                 if (bVal instanceof String s) {
-                    String addr = s.toLowerCase();
-                    if (!ETH_ADDRESS_PATTERN.matcher(addr).matches()) {
-                        throw new HypeError("builder.b 必须是 42 位 0x 开头的十六进制地址，例如 0x000...000");
-                    }
-                    filtered.put("b", addr);
+                    filtered.put("b", s.toLowerCase());
                 }
             }
             if (builder.containsKey("f")) {
@@ -1204,50 +1185,6 @@ public class Exchange {
         return assetId;
     }
 
-    /**
-     * 确保当前地址已启用 Dex Abstraction。
-     *
-     * <p>
-     * 顺序尝试：
-     * 1) 查询状态；
-     * 2) userDexAbstraction(user, true) 用户签名开启；
-     * 3) agentEnableDexAbstraction L1 开启。
-     * 成功后写入本地缓存。
-     * </p>
-     */
-    private void ensureDexAbstractionEnabled() {
-        String address = wallet.getAddress().toLowerCase();
-        Boolean cached = dexEnabledCache.getIfPresent(address);
-        if (cached != null && cached)
-            return;
-
-        boolean enabled = false;
-        try {
-            JsonNode state = info.queryUserDexAbstractionState(address);
-            enabled = isDexEnabled(state);
-        } catch (Exception ignored) {
-        }
-
-        if (!enabled) {
-            try {
-                JsonNode userToggle = userDexAbstraction(address, true);
-                enabled = isOk(userToggle) || isAlreadySet(userToggle);
-            } catch (Exception ignored) {
-            }
-        }
-
-        if (!enabled) {
-            try {
-                JsonNode resp = agentEnableDexAbstraction();
-                enabled = isOk(resp) || isAlreadySet(resp);
-            } catch (Exception ignored) {
-            }
-        }
-
-        if (enabled) {
-            dexEnabledCache.put(address, Boolean.TRUE);
-        }
-    }
 
     /**
      * 解析 Dex Abstraction 启用状态。

@@ -17,7 +17,6 @@ import java.util.*;
  * 签名与转换工具（覆盖核心功能：浮点转换、订单 wire 转换、动作哈希、EIP-712 签名）。
  * <p>
  * 设计目标：
- * - 统一使用 API 层共享的 ObjectMapper，避免多处配置不一致与重复实例化；
  * - 在 addressToBytes 方法中实现严格的地址长度校验（默认 20 字节），并可通过开关启用兼容性降级策略；
  * - 为关键方法补充详细文档，包括 @return 与 @throws 注释，便于 IDE 友好提示与二次开发。
  * <p>
@@ -33,11 +32,9 @@ public final class Signing {
      * IllegalArgumentException；
      * - false：对非 20 字节输入执行兼容性降级（>20 截取末尾 20 字节；<20 左侧补零）。
      * <p>
-     * 可通过系统属性 hyperliquid.address.strict 控制默认值，例如：
-     * -Dhyperliquid.address.strict=true/false
+     * 可通过系统属性 hyperliquid.address.strict 控制默认值
      */
-    private static volatile boolean STRICT_ADDRESS_LENGTH = Boolean
-            .parseBoolean(System.getProperty("hyperliquid.address.strict", "true"));
+    private static volatile boolean STRICT_ADDRESS_LENGTH = Boolean.TRUE;
 
     private Signing() {
     }
@@ -423,10 +420,8 @@ public final class Signing {
         full.put("types", types);
         full.put("primaryType", "Agent");
         full.put("message", phantomAgent);
-
-        com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
         try {
-            return om.writeValueAsString(full);
+            return JSONUtil.writeValueAsString(full);
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new HypeError("Failed to build typed data json: " + e.getMessage());
         }
@@ -493,10 +488,8 @@ public final class Signing {
         full.put("types", types);
         full.put("primaryType", primaryType);
         full.put("message", action);
-
-        com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
         try {
-            return om.writeValueAsString(full);
+            return JSONUtil.writeValueAsString(full);
         } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
             throw new HypeError("Failed to build user-signed typed data json: " + e.getMessage());
         }

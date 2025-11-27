@@ -128,8 +128,7 @@ public class Info {
      * @throws HypeError 当名称不存在时抛出
      */
     public Meta.Universe getMetaUniverse(String coinName) {
-        Meta meta = loadMetaCache();
-        List<Meta.Universe> universe = meta.getUniverse();
+        List<Meta.Universe> universe = loadMetaCache().getUniverse();
         for (Meta.Universe u : universe) {
             if (u.getName().equalsIgnoreCase(coinName)) {
                 return u;
