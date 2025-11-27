@@ -93,9 +93,7 @@ public final class Signing {
      * @return 放大后的整数
      */
     public static long floatToUsdInt(double value) {
-        BigDecimal bd = BigDecimal.valueOf(value);
-        BigDecimal scaled = bd.multiply(BigDecimal.valueOf(1_000_000L));
-        return scaled.longValue();
+        return floatToInt(value, 6);
     }
 
     /**
@@ -147,8 +145,8 @@ public final class Signing {
 
         if (orderType.getTrigger() != null) {
             Map<String, Object> trigObj = new LinkedHashMap<>();
-            trigObj.put("triggerPx", floatToWire(orderType.getTrigger().getTriggerPx()));
             trigObj.put("isMarket", orderType.getTrigger().isMarket());
+            trigObj.put("triggerPx", floatToWire(orderType.getTrigger().getTriggerPx()));
             trigObj.put("tpsl", orderType.getTrigger().getTpsl());
             out.put("trigger", trigObj);
         }
@@ -717,6 +715,8 @@ public final class Signing {
     public static Map<String, Object> orderWiresToOrderAction(List<OrderWire> orders) {
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "order");
+
+
         List<Map<String, Object>> wires = new ArrayList<>();
         for (OrderWire o : orders) {
             Map<String, Object> w = new LinkedHashMap<>();
