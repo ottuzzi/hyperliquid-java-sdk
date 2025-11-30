@@ -3,20 +3,15 @@ package io.github.hyperliquid.sdk.apis;
 import com.fasterxml.jackson.databind.JsonNode;
 import io.github.hyperliquid.sdk.model.approve.ApproveAgentResult;
 import io.github.hyperliquid.sdk.model.info.ClearinghouseState;
-import io.github.hyperliquid.sdk.model.info.Meta;
 import io.github.hyperliquid.sdk.model.info.UpdateLeverage;
 import io.github.hyperliquid.sdk.model.order.*;
+import io.github.hyperliquid.sdk.model.wallet.ApiWallet;
 import io.github.hyperliquid.sdk.utils.*;
-import org.web3j.crypto.Credentials;
 
 import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -26,9 +21,9 @@ import java.util.concurrent.ConcurrentHashMap;
 public class Exchange {
 
     /**
-     * 用户钱包凭证（包含私钥与地址）
+     * 用户API钱包
      */
-    private final Credentials wallet;
+    private final ApiWallet apiWallet;
 
     /**
      * HTTP 客户端
@@ -80,9 +75,9 @@ public class Exchange {
      * @param wallet         用户钱包凭证
      * @param info           Info 客户端实例
      */
-    public Exchange(HypeHttpClient hypeHttpClient, Credentials wallet, Info info) {
+    public Exchange(HypeHttpClient hypeHttpClient, ApiWallet wallet, Info info) {
         this.hypeHttpClient = hypeHttpClient;
-        this.wallet = wallet;
+        this.apiWallet = wallet;
         this.info = info;
 
     }
@@ -163,8 +158,8 @@ public class Exchange {
      */
     private void formatOrderSize(OrderRequest req) {
         if (req == null || req.getSz() == null) return;
-        Meta.Universe universe = info.getMetaUniverse(req.getCoin());
-        Integer szDecimals = universe.getSzDecimals();
+        // 优化：直接从缓存获取 szDecimals，避免每次都获取完整 Universe 对象
+        Integer szDecimals = info.getSzDecimals(req.getCoin());
         if (szDecimals == null) return;
         // 使用 BigDecimal 按精度四舍五入，向下取整更安全
         BigDecimal bd = BigDecimal.valueOf(req.getSz()).setScale(szDecimals, RoundingMode.DOWN);
@@ -181,8 +176,8 @@ public class Exchange {
      */
     private void formatOrderPrice(OrderRequest req) {
         if (req == null) return;
-        Meta.Universe universe = info.getMetaUniverse(req.getCoin());
-        Integer szDecimals = universe.getSzDecimals();
+        // 优化：直接从缓存获取 szDecimals，避免每次都获取完整 Universe 对象
+        Integer szDecimals = info.getSzDecimals(req.getCoin());
         if (szDecimals == null) return;
         boolean isSpot = req.getInstrumentType() == InstrumentType.SPOT;
 
@@ -269,7 +264,7 @@ public class Exchange {
      * @return 签名尺寸（double）
      */
     private double inferSignedPosition(String coin) {
-        ClearinghouseState state = info.userState(wallet.getAddress().toLowerCase());
+        ClearinghouseState state = info.userState(apiWallet.getPrimaryWalletAddress().toLowerCase());
         if (state == null || state.getAssetPositions() == null)
             return 0.0;
         for (ClearinghouseState.AssetPositions ap : state.getAssetPositions()) {
@@ -506,7 +501,7 @@ public class Exchange {
             int assetId = ensureAssetId(mr.getCoinName());
             OrderWire wire = Signing.orderRequestToOrderWire(assetId, mr.getNewOrder());
             Map<String, Object> modify = new LinkedHashMap<>();
-            
+
             // 支持 OID 或 Cloid
             if (mr.getOid() != null) {
                 modify.put("oid", mr.getOid());
@@ -515,7 +510,7 @@ public class Exchange {
             } else {
                 throw new HypeError("Either oid or cloid must be provided for modify request");
             }
-            
+
             modify.put("order", wire);
             modifies.add(modify);
         }
@@ -606,7 +601,7 @@ public class Exchange {
                 Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 payloadTypes,
                 "HyperliquidTransaction:UserDexAbstraction",
@@ -668,7 +663,7 @@ public class Exchange {
                 Map.of("name", "time", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 payloadTypes,
                 "HyperliquidTransaction:UsdSend",
@@ -701,7 +696,7 @@ public class Exchange {
                 Map.of("name", "time", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 payloadTypes,
                 "HyperliquidTransaction:SpotSend",
@@ -731,7 +726,7 @@ public class Exchange {
                 Map.of("name", "time", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 payloadTypes,
                 "HyperliquidTransaction:Withdraw",
@@ -765,7 +760,7 @@ public class Exchange {
                 Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 payloadTypes,
                 "HyperliquidTransaction:UsdClassTransfer",
@@ -809,7 +804,7 @@ public class Exchange {
                 Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 payloadTypes,
                 "HyperliquidTransaction:SendAsset",
@@ -839,7 +834,7 @@ public class Exchange {
                 Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 payloadTypes,
                 "HyperliquidTransaction:ApproveBuilderFee",
@@ -866,7 +861,7 @@ public class Exchange {
                 Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 payloadTypes,
                 "HyperliquidTransaction:SetReferrer",
@@ -899,7 +894,7 @@ public class Exchange {
                 Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 payloadTypes,
                 "HyperliquidTransaction:TokenDelegate",
@@ -926,7 +921,7 @@ public class Exchange {
                 Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 payloadTypes,
                 "HyperliquidTransaction:ConvertToMultiSigUser",
@@ -1196,7 +1191,7 @@ public class Exchange {
                 Map.of("name", "nonce", "type", "uint64"));
 
         Map<String, Object> signature = Signing.signUserSignedAction(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 payloadTypes,
                 "HyperliquidTransaction:ApproveAgent",
@@ -1242,7 +1237,7 @@ public class Exchange {
         String effectiveVault = ("usdClassTransfer".equals(type) || "sendAsset".equals(type)) ? null : vaultAddress;
         if (effectiveVault != null) {
             effectiveVault = effectiveVault.toLowerCase();
-            String signerAddr = wallet.getAddress().toLowerCase();
+            String signerAddr = apiWallet.getPrimaryWalletAddress().toLowerCase();
             if (effectiveVault.equals(signerAddr)) {
                 effectiveVault = null;
             }
@@ -1257,7 +1252,7 @@ public class Exchange {
         }
 
         Map<String, Object> signature = Signing.signL1Action(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 effectiveVault,
                 nonce,
@@ -1609,13 +1604,13 @@ public class Exchange {
         // 构造 payload
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("multiSigUser", multiSigUser.toLowerCase());
-        payload.put("outerSigner", wallet.getAddress().toLowerCase());
+        payload.put("outerSigner", apiWallet.getPrimaryWalletAddress().toLowerCase());
         payload.put("action", innerAction);
         multiSigAction.put("payload", payload);
 
         // 签名
         Map<String, Object> signature = Signing.signMultiSigAction(
-                wallet,
+                apiWallet.getCredentials(),
                 multiSigAction,
                 isMainnet(),
                 vaultAddress,
@@ -1792,13 +1787,13 @@ public class Exchange {
      * 用于修改验证者节点的配置信息。所有参数可为 null，仅更新非 null 参数。
      * </p>
      *
-     * @param nodeIp              节点 IP 地址（可为 null）
-     * @param name                验证者名称（可为 null）
-     * @param description         验证者描述（可为 null）
-     * @param unjailed            是否解除监禱
-     * @param disableDelegations  是否禁用委托（可为 null）
-     * @param commissionBps       佣金比例（可为 null）
-     * @param signer              签名者地址（可为 null）
+     * @param nodeIp             节点 IP 地址（可为 null）
+     * @param name               验证者名称（可为 null）
+     * @param description        验证者描述（可为 null）
+     * @param unjailed           是否解除监禱
+     * @param disableDelegations 是否禁用委托（可为 null）
+     * @param commissionBps      佣金比例（可为 null）
+     * @param signer             签名者地址（可为 null）
      * @return JSON 响应
      */
     public JsonNode cValidatorChangeProfile(
@@ -1911,14 +1906,14 @@ public class Exchange {
         String effectiveVault = vaultAddress;
         if (effectiveVault != null) {
             effectiveVault = effectiveVault.toLowerCase();
-            String signerAddr = wallet.getAddress().toLowerCase();
+            String signerAddr = apiWallet.getPrimaryWalletAddress().toLowerCase();
             if (effectiveVault.equals(signerAddr)) {
                 effectiveVault = null;
             }
         }
 
         Map<String, Object> signature = Signing.signL1Action(
-                wallet,
+                apiWallet.getCredentials(),
                 action,
                 effectiveVault,
                 nonce,

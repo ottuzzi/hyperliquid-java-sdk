@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
+import com.github.benmanes.caffeine.cache.stats.CacheStats;
+import io.github.hyperliquid.sdk.config.CacheConfig;
 import io.github.hyperliquid.sdk.model.info.*;
 import io.github.hyperliquid.sdk.model.order.Cloid;
 import io.github.hyperliquid.sdk.utils.HypeError;
@@ -14,6 +16,7 @@ import io.github.hyperliquid.sdk.websocket.WebsocketManager;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -27,29 +30,77 @@ public class Info {
 
     private final HypeHttpClient hypeHttpClient;
 
-    private final Cache<String, Meta> metaCache = Caffeine.newBuilder()
-            .maximumSize(1000)
-            .expireAfterWrite(30, TimeUnit.MINUTES)
-            .recordStats()
-            .build();
+    /**
+     * Meta 缓存（支持多 DEX）
+     * Key 格式："meta:default" 或 "meta:dexName"
+     */
+    private final Cache<String, Meta> metaCache;
 
     /**
-     * 构造 InfoClient 客户端。
+     * SpotMeta 缓存
+     */
+    private final Cache<String, SpotMeta> spotMetaCache;
+
+    /**
+     * 币种名称到资产 ID 的映射缓存
+     * Key: 币种名称（大写），Value: 资产 ID
+     */
+    private final Map<String, Integer> coinToAssetCache = new ConcurrentHashMap<>();
+
+    /**
+     * 资产 ID 到数量精度的映射缓存
+     * Key: 资产 ID，Value: szDecimals
+     */
+    private final Map<Integer, Integer> assetToSzDecimalsCache = new ConcurrentHashMap<>();
+
+    /**
+     * 构造 InfoClient 客户端（使用默认缓存配置）。
      *
      * @param baseUrl        API 根地址
      * @param hypeHttpClient HTTP客户端实例
      * @param skipWs         是否跳过创建 WebSocket 连接（用于测试）
      */
     public Info(String baseUrl, HypeHttpClient hypeHttpClient, boolean skipWs) {
+        this(baseUrl, hypeHttpClient, skipWs, CacheConfig.defaultConfig());
+    }
+
+    /**
+     * 构造 InfoClient 客户端（支持自定义缓存配置）。
+     *
+     * @param baseUrl        API 根地址
+     * @param hypeHttpClient HTTP客户端实例
+     * @param skipWs         是否跳过创建 WebSocket 连接（用于测试）
+     * @param cacheConfig    缓存配置
+     */
+    public Info(String baseUrl, HypeHttpClient hypeHttpClient, boolean skipWs, CacheConfig cacheConfig) {
         this.hypeHttpClient = hypeHttpClient;
         this.skipWs = skipWs;
         if (!skipWs) {
             this.wsManager = new WebsocketManager(baseUrl);
         }
+        // 根据配置初始化缓存
+        Caffeine<Object, Object> metaCacheBuilder = Caffeine.newBuilder()
+                .maximumSize(cacheConfig.getMetaCacheMaxSize())
+                .expireAfterWrite(cacheConfig.getExpireAfterWriteMinutes(), TimeUnit.MINUTES);
+        if (cacheConfig.isRecordStats()) {
+            metaCacheBuilder.recordStats();
+        }
+        this.metaCache = metaCacheBuilder.build();
+
+        Caffeine<Object, Object> spotMetaCacheBuilder = Caffeine.newBuilder()
+                .maximumSize(cacheConfig.getSpotMetaCacheMaxSize())
+                .expireAfterWrite(cacheConfig.getExpireAfterWriteMinutes(), TimeUnit.MINUTES);
+        if (cacheConfig.isRecordStats()) {
+            spotMetaCacheBuilder.recordStats();
+        }
+        this.spotMetaCache = spotMetaCacheBuilder.build();
     }
 
     /**
      * 将币种名称映射为资产 ID（根据 meta.universe）。
+     * <p>
+     * 优化：先查询内存映射缓存，未命中时从 meta 缓存加载并构建映射。
+     * </p>
      *
      * @param coinName 币种名称（大小写不敏感）
      * @return 资产 ID（从 0 开始）
@@ -57,14 +108,23 @@ public class Info {
      */
     public Integer nameToAsset(String coinName) {
         String normalizedName = coinName.trim().toUpperCase();
-        List<Meta.Universe> universe = loadMetaCache().getUniverse();
-        for (int assetId = 0; assetId < universe.size(); assetId++) {
-            Meta.Universe u = universe.get(assetId);
-            if (u.getName().equalsIgnoreCase(normalizedName)) {
-                return assetId;
-            }
+
+        // 优先从映射缓存查询
+        Integer assetId = coinToAssetCache.get(normalizedName);
+        if (assetId != null) {
+            return assetId;
         }
-        throw new HypeError("Unknown currency name:" + normalizedName);
+
+        // 缓存未命中，从 meta 加载并构建映射
+        Meta meta = loadMetaCache();
+        buildCoinMappingCache(meta);
+
+        // 再次查询
+        assetId = coinToAssetCache.get(normalizedName);
+        if (assetId == null) {
+            throw new HypeError("Unknown currency name:" + normalizedName);
+        }
+        return assetId;
     }
 
     /**
@@ -112,29 +172,164 @@ public class Info {
     }
 
     /**
-     * 获取/刷新本地缓存的 meta。
+     * 获取/刷新本地缓存的 meta（默认 dex）。
      *
      * @return 缓存中的 Meta
      */
     public Meta loadMetaCache() {
-        return metaCache.get("meta", key -> meta());
+        return loadMetaCache(null);
+    }
+
+    /**
+     * 获取/刷新本地缓存的 meta（支持指定 dex）。
+     * <p>
+     * 改进：支持多 DEX 缓存，缓存键格式为 "meta:default" 或 "meta:dexName"。
+     * </p>
+     *
+     * @param dex perp dex 名称（null 或空字符串表示默认 dex）
+     * @return 缓存中的 Meta
+     */
+    public Meta loadMetaCache(String dex) {
+        String cacheKey = buildMetaCacheKey(dex);
+        return metaCache.get(cacheKey, key -> {
+            Meta meta = meta(dex);
+            // 加载 meta 后自动构建币种映射缓存
+            buildCoinMappingCache(meta);
+            return meta;
+        });
+    }
+
+    /**
+     * 手动刷新 meta 缓存（强制重新加载）。
+     *
+     * @param dex perp dex 名称（null 或空字符串表示默认 dex）
+     * @return 最新的 Meta
+     */
+    public Meta refreshMetaCache(String dex) {
+        String cacheKey = buildMetaCacheKey(dex);
+        metaCache.invalidate(cacheKey);
+        // 清空币种映射缓存，强制重建
+        coinToAssetCache.clear();
+        assetToSzDecimalsCache.clear();
+        return loadMetaCache(dex);
+    }
+
+    /**
+     * 手动刷新 meta 缓存（默认 dex）。
+     *
+     * @return 最新的 Meta
+     */
+    public Meta refreshMetaCache() {
+        return refreshMetaCache(null);
+    }
+
+    /**
+     * 清空所有 meta 缓存。
+     */
+    public void clearMetaCache() {
+        metaCache.invalidateAll();
+        coinToAssetCache.clear();
+        assetToSzDecimalsCache.clear();
+    }
+
+    /**
+     * 获取 meta 缓存统计信息。
+     *
+     * @return 缓存统计对象
+     */
+    public CacheStats getMetaCacheStats() {
+        return metaCache.stats();
+    }
+
+    /**
+     * 构建 meta 缓存键。
+     *
+     * @param dex perp dex 名称
+     * @return 缓存键字符串
+     */
+    private String buildMetaCacheKey(String dex) {
+        return (dex == null || dex.isEmpty()) ? "meta:default" : "meta:" + dex;
+    }
+
+    /**
+     * 从 Meta 构建币种映射缓存（内部方法）。
+     * <p>
+     * 构建两个映射表：
+     * 1. coinToAssetCache: 币种名称（大写） -> 资产 ID
+     * 2. assetToSzDecimalsCache: 资产 ID -> szDecimals
+     * </p>
+     *
+     * @param meta Meta 对象
+     */
+    private void buildCoinMappingCache(Meta meta) {
+        if (meta == null || meta.getUniverse() == null) {
+            return;
+        }
+        List<Meta.Universe> universe = meta.getUniverse();
+        for (int assetId = 0; assetId < universe.size(); assetId++) {
+            Meta.Universe u = universe.get(assetId);
+            if (u.getName() != null) {
+                String coinName = u.getName().toUpperCase();
+                coinToAssetCache.put(coinName, assetId);
+                if (u.getSzDecimals() != null) {
+                    assetToSzDecimalsCache.put(assetId, u.getSzDecimals());
+                }
+            }
+        }
     }
 
     /**
      * 根据币种名称获取 meta 中的 universe 元素。
+     * <p>
+     * 优化：优先从映射缓存查询资产 ID，再获取对应的 Universe 元素。
+     * </p>
      *
      * @param coinName 币种名称
      * @return 对应的 Universe 元素
      * @throws HypeError 当名称不存在时抛出
      */
     public Meta.Universe getMetaUniverse(String coinName) {
+        // 通过 nameToAsset 获取资产 ID（会自动利用缓存）
+        Integer assetId = nameToAsset(coinName);
         List<Meta.Universe> universe = loadMetaCache().getUniverse();
-        for (Meta.Universe u : universe) {
-            if (u.getName().equalsIgnoreCase(coinName)) {
-                return u;
-            }
+        if (assetId >= 0 && assetId < universe.size()) {
+            return universe.get(assetId);
         }
         throw new HypeError("Unknown currency name:" + coinName);
+    }
+
+    /**
+     * 根据币种名称快速获取 szDecimals（数量精度）。
+     * <p>
+     * 优化：优先从 assetToSzDecimalsCache 缓存查询，避免每次都获取完整 Universe 对象。
+     * 该方法主要用于订单格式化场景（formatOrderSize/formatOrderPrice）。
+     * </p>
+     *
+     * @param coinName 币种名称
+     * @return szDecimals 数量精度
+     * @throws HypeError 当名称不存在或精度未定义时抛出
+     */
+    public Integer getSzDecimals(String coinName) {
+        // 通过 nameToAsset 获取资产 ID（会自动利用缓存）
+        Integer assetId = nameToAsset(coinName);
+
+        // 优先从精度缓存查询
+        Integer szDecimals = assetToSzDecimalsCache.get(assetId);
+        if (szDecimals != null) {
+            return szDecimals;
+        }
+
+        // 缓存未命中，从 meta 加载
+        Meta.Universe universe = getMetaUniverse(coinName);
+        szDecimals = universe.getSzDecimals();
+
+        if (szDecimals == null) {
+            throw new HypeError("szDecimals not defined for coin: " + coinName);
+        }
+
+        // 更新缓存
+        assetToSzDecimalsCache.put(assetId, szDecimals);
+        return szDecimals;
     }
 
     /**
@@ -178,6 +373,77 @@ public class Info {
     public SpotMeta spotMeta() {
         Map<String, Object> payload = Map.of("type", "spotMeta");
         return JSONUtil.convertValue(postInfo(payload), SpotMeta.class);
+    }
+
+    /**
+     * 获取/刷新本地缓存的 spotMeta。
+     *
+     * @return 缓存中的 SpotMeta
+     */
+    public SpotMeta loadSpotMetaCache() {
+        return spotMetaCache.get("spotMeta", key -> spotMeta());
+    }
+
+    /**
+     * 手动刷新 spotMeta 缓存（强制重新加载）。
+     *
+     * @return 最新的 SpotMeta
+     */
+    public SpotMeta refreshSpotMetaCache() {
+        spotMetaCache.invalidate("spotMeta");
+        return loadSpotMetaCache();
+    }
+
+    /**
+     * 清空所有 spotMeta 缓存。
+     */
+    public void clearSpotMetaCache() {
+        spotMetaCache.invalidateAll();
+    }
+
+    /**
+     * 获取 spotMeta 缓存统计信息。
+     *
+     * @return 缓存统计对象
+     */
+    public CacheStats getSpotMetaCacheStats() {
+        return spotMetaCache.stats();
+    }
+
+    // ==================== 缓存预热（Warm Up） ====================
+
+    /**
+     * 预热缓存（应用启动时调用，提前加载常用数据）。
+     * <p>
+     * 预加载：
+     * 1. 默认 dex 的 meta
+     * 2. spotMeta
+     * 3. 币种映射表
+     * </p>
+     */
+    public void warmUpCache() {
+        loadMetaCache();       // 预加载默认 meta
+        loadSpotMetaCache();   // 预加载 spotMeta
+    }
+
+    /**
+     * 预热缓存（支持指定 dex 列表）。
+     *
+     * @param dexList 需要预加载的 dex 名称列表（null 或空列表表示只加载默认 dex）
+     */
+    public void warmUpCache(List<String> dexList) {
+        if (dexList == null || dexList.isEmpty()) {
+            warmUpCache();
+            return;
+        }
+
+        // 预加载指定 dex 的 meta
+        for (String dex : dexList) {
+            loadMetaCache(dex);
+        }
+
+        // 预加载 spotMeta
+        loadSpotMetaCache();
     }
 
     /**
@@ -936,12 +1202,12 @@ public class Info {
      *
      * @param address 用户地址（42 位十六进制格式）
      * @return JSON 响应，包含：
-     *         <ul>
-     *         <li>delegated - 已委托数量（float string）</li>
-     *         <li>undelegated - 未委托数量（float string）</li>
-     *         <li>totalPendingWithdrawal - 总待提取数量（float string）</li>
-     *         <li>nPendingWithdrawals - 待提取笔数（int）</li>
-     *         </ul>
+     * <ul>
+     * <li>delegated - 已委托数量（float string）</li>
+     * <li>undelegated - 未委托数量（float string）</li>
+     * <li>totalPendingWithdrawal - 总待提取数量（float string）</li>
+     * <li>nPendingWithdrawals - 待提取笔数（int）</li>
+     * </ul>
      */
     public JsonNode userStakingSummary(String address) {
         Map<String, Object> payload = Map.of(
@@ -959,11 +1225,11 @@ public class Info {
      *
      * @param address 用户地址（42 位十六进制格式）
      * @return JSON 响应数组，每个元素包含：
-     *         <ul>
-     *         <li>validator - 验证者地址（string）</li>
-     *         <li>amount - 委托数量（float string）</li>
-     *         <li>lockedUntilTimestamp - 锁定至时间戳（int）</li>
-     *         </ul>
+     * <ul>
+     * <li>validator - 验证者地址（string）</li>
+     * <li>amount - 委托数量（float string）</li>
+     * <li>lockedUntilTimestamp - 锁定至时间戳（int）</li>
+     * </ul>
      */
     public JsonNode userStakingDelegations(String address) {
         Map<String, Object> payload = Map.of(
@@ -981,11 +1247,11 @@ public class Info {
      *
      * @param address 用户地址（42 位十六进制格式）
      * @return JSON 响应数组，每个元素包含：
-     *         <ul>
-     *         <li>time - 时间戳（int）</li>
-     *         <li>source - 奖励来源（string）</li>
-     *         <li>totalAmount - 总奖励数量（float string）</li>
-     *         </ul>
+     * <ul>
+     * <li>time - 时间戳（int）</li>
+     * <li>source - 奖励来源（string）</li>
+     * <li>totalAmount - 总奖励数量（float string）</li>
+     * </ul>
      */
     public JsonNode userStakingRewards(String address) {
         Map<String, Object> payload = Map.of(

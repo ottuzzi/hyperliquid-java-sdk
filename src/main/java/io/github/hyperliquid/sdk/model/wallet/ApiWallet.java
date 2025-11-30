@@ -1,5 +1,7 @@
 package io.github.hyperliquid.sdk.model.wallet;
 
+import org.web3j.crypto.Credentials;
+
 /**
  * API 钱包
  **/
@@ -14,6 +16,11 @@ public class ApiWallet {
      * API 钱包对应的私钥（用于签名交易请求）
      */
     private String apiWalletPrivateKey;
+
+    /**
+     * 凭证
+     **/
+    private Credentials credentials;
 
     public ApiWallet(String primaryWalletAddress, String apiWalletPrivateKey) {
         this.primaryWalletAddress = primaryWalletAddress;
@@ -38,5 +45,13 @@ public class ApiWallet {
 
     public void setApiWalletPrivateKey(String apiWalletPrivateKey) {
         this.apiWalletPrivateKey = apiWalletPrivateKey;
+    }
+
+    public Credentials getCredentials() {
+        return credentials;
+    }
+
+    public void setCredentials(Credentials credentials) {
+        this.credentials = credentials;
     }
 }

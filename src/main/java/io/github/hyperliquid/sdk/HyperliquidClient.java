@@ -178,16 +178,37 @@ public class HyperliquidClient {
     }
 
     public static class Builder {
-
+        /**
+         * API 节点地址
+         **/
         private String baseUrl = Constants.MAINNET_API_URL;
 
+        /**
+         * 超时时间（秒，默认10秒）
+         **/
         private int timeout = 10;
 
+        /**
+         * 是否跳过 WebSocket（默认不跳过）
+         **/
         private boolean skipWs = false;
 
+        /**
+         * API 钱包列表
+         **/
         private final List<ApiWallet> apiWallets = new ArrayList<>();
 
+        /**
+         * OkHttpClient 实例
+         **/
         private OkHttpClient okHttpClient = null;
+
+        /**
+         * 是否自动预热缓存（默认启用）
+         * 启用后，在 build() 时会自动加载常用数据（meta、spotMeta、币种映射）到缓存中，
+         * 避免首次调用 API 时的延迟，提升用户体验。
+         */
+        private boolean autoWarmUpCache = true;
 
         public Builder baseUrl(String baseUrl) {
             this.baseUrl = baseUrl;
@@ -246,6 +267,23 @@ public class HyperliquidClient {
             return this;
         }
 
+        /**
+         * 禁用自动缓存预热（高级选项）。
+         * <p>
+         * 默认情况下，build() 会自动预热缓存以提升性能。
+         * 仅在以下场景需要禁用：
+         * 1. 应用启动时间要求极其严格（毫秒级）
+         * 2. 网络环境不稳定，不希望 build() 阻塞
+         * 3. 用于测试场景，需要精确控制缓存行为
+         * </p>
+         *
+         * @return Builder 实例
+         */
+        public Builder disableAutoWarmUpCache() {
+            this.autoWarmUpCache = false;
+            return this;
+        }
+
 
         private OkHttpClient getOkHttpClient() {
             return okHttpClient != null ? okHttpClient : new OkHttpClient.Builder()
@@ -265,12 +303,26 @@ public class HyperliquidClient {
                 for (ApiWallet apiWallet : apiWallets) {
                     validatePrivateKey(apiWallet.getApiWalletPrivateKey());
                     Credentials credentials = Credentials.create(apiWallet.getApiWalletPrivateKey());
+                    apiWallet.setCredentials(credentials);
                     if (apiWallet.getPrimaryWalletAddress() == null || apiWallet.getPrimaryWalletAddress().trim().isEmpty()) {
                         apiWallet.setPrimaryWalletAddress(credentials.getAddress());
                     }
-                    exchangesByAddress.put(apiWallet.getPrimaryWalletAddress(), new Exchange(hypeHttpClient, credentials, info));
+                    exchangesByAddress.put(apiWallet.getPrimaryWalletAddress(), new Exchange(hypeHttpClient, apiWallet, info));
                 }
             }
+
+            // 自动缓存预热（提升首次调用性能）
+            if (autoWarmUpCache) {
+                try {
+                    info.warmUpCache();
+                } catch (Exception e) {
+                    // 预热失败不应阻止客户端创建，仅记录警告
+                    // 用户仍可正常使用 SDK，只是首次调用会有延迟
+                    System.err.println("[HyperliquidClient] Warning: Cache warm-up failed, but client is still usable. " +
+                            "First API calls may be slower. Error: " + e.getMessage());
+                }
+            }
+
             return new HyperliquidClient(
                     info,
                     Collections.unmodifiableMap(exchangesByAddress),
