@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.type.TypeFactory;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
 import io.github.hyperliquid.sdk.model.info.*;
+import io.github.hyperliquid.sdk.model.order.Cloid;
 import io.github.hyperliquid.sdk.utils.HypeError;
 import io.github.hyperliquid.sdk.utils.HypeHttpClient;
 import io.github.hyperliquid.sdk.utils.JSONUtil;
@@ -679,6 +680,21 @@ public class Info {
     }
 
     /**
+     * 订单状态查询（按 Cloid，与 Python query_order_by_cloid 对齐）。
+     *
+     * @param address 用户地址
+     * @param cloid   客户端订单 ID
+     * @return 类型化模型 OrderStatus
+     */
+    public OrderStatus orderStatusByCloid(String address, Cloid cloid) {
+        if (cloid == null) {
+            throw new HypeError("cloid cannot be null");
+        }
+        Map<String, Object> payload = Map.of("type", "orderStatus", "user", address, "oid", cloid.getRaw());
+        return JSONUtil.convertValue(postInfo(payload), OrderStatus.class);
+    }
+
+    /**
      * 查询推荐人状态（queryReferralState）。
      *
      * @param address 用户地址
@@ -908,5 +924,91 @@ public class Info {
             return;
         if (wsManager != null)
             wsManager.removeCallbackErrorListener(listener);
+    }
+
+    // ==================== 质押功能模块（Staking） ====================
+
+    /**
+     * 查询用户质押摘要（delegatorSummary）。
+     * <p>
+     * POST /info
+     * </p>
+     *
+     * @param address 用户地址（42 位十六进制格式）
+     * @return JSON 响应，包含：
+     *         <ul>
+     *         <li>delegated - 已委托数量（float string）</li>
+     *         <li>undelegated - 未委托数量（float string）</li>
+     *         <li>totalPendingWithdrawal - 总待提取数量（float string）</li>
+     *         <li>nPendingWithdrawals - 待提取笔数（int）</li>
+     *         </ul>
+     */
+    public JsonNode userStakingSummary(String address) {
+        Map<String, Object> payload = Map.of(
+                "type", "delegatorSummary",
+                "user", address
+        );
+        return postInfo(payload);
+    }
+
+    /**
+     * 查询用户质押委托详情（delegations）。
+     * <p>
+     * POST /info
+     * </p>
+     *
+     * @param address 用户地址（42 位十六进制格式）
+     * @return JSON 响应数组，每个元素包含：
+     *         <ul>
+     *         <li>validator - 验证者地址（string）</li>
+     *         <li>amount - 委托数量（float string）</li>
+     *         <li>lockedUntilTimestamp - 锁定至时间戳（int）</li>
+     *         </ul>
+     */
+    public JsonNode userStakingDelegations(String address) {
+        Map<String, Object> payload = Map.of(
+                "type", "delegations",
+                "user", address
+        );
+        return postInfo(payload);
+    }
+
+    /**
+     * 查询用户历史质押奖励（delegatorRewards）。
+     * <p>
+     * POST /info
+     * </p>
+     *
+     * @param address 用户地址（42 位十六进制格式）
+     * @return JSON 响应数组，每个元素包含：
+     *         <ul>
+     *         <li>time - 时间戳（int）</li>
+     *         <li>source - 奖励来源（string）</li>
+     *         <li>totalAmount - 总奖励数量（float string）</li>
+     *         </ul>
+     */
+    public JsonNode userStakingRewards(String address) {
+        Map<String, Object> payload = Map.of(
+                "type", "delegatorRewards",
+                "user", address
+        );
+        return postInfo(payload);
+    }
+
+    /**
+     * 查询委托历史记录（delegatorHistory）。
+     * <p>
+     * POST /info
+     * </p>
+     *
+     * @param user 用户地址（42 位十六进制格式）
+     * @return JSON 响应，包含委托和取消委托事件的详细历史记录，包括时间戳、交易哈希及详细 delta 信息
+     */
+    public JsonNode delegatorHistory(String user) {
+        Map<String, Object> payload = Map.of(
+                "type", "delegatorHistory",
+                "user", user
+        );
+        return postInfo(payload);
     }
 }

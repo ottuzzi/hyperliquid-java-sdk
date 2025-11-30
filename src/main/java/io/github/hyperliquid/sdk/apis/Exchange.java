@@ -13,6 +13,7 @@ import java.math.BigDecimal;
 import java.math.MathContext;
 import java.math.RoundingMode;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -390,6 +391,28 @@ public class Exchange {
     }
 
     /**
+     * 批量下单（普通订单，默认 grouping="na"）。
+     * <p>
+     * 用于批量提交多个普通订单，订单之间无关联关系。
+     * <p>
+     * 使用示例：
+     * <pre>
+     * // 批量下多个币种的订单
+     * List<OrderRequest> orders = Arrays.asList(
+     *     OrderRequest.builder().perp("BTC").buy(0.01).limitPrice(95000.0).build(),
+     *     OrderRequest.builder().perp("ETH").buy(0.1).limitPrice(3500.0).build()
+     * );
+     * JsonNode result = exchange.bulkOrders(orders);
+     * </pre>
+     *
+     * @param requests 订单列表
+     * @return 响应 JSON
+     */
+    public JsonNode bulkOrders(List<OrderRequest> requests) {
+        return bulkOrders(requests, null, null);
+    }
+
+    /**
      * 根据 OID 撤单（保持与 Python cancel 行为一致）。
      *
      * @param coinName 币种名
@@ -454,6 +477,52 @@ public class Exchange {
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "batchModify");
         action.put("modifies", List.of(modify));
+        return postAction(action);
+    }
+
+    /**
+     * 批量修改订单（与 Python bulk_modify_orders_new 对齐）。
+     * <p>
+     * 使用示例：
+     * <pre>
+     * // 修改多个订单
+     * List<ModifyRequest> modifies = Arrays.asList(
+     *     ModifyRequest.byOid("ETH", 123456L, newReq1),
+     *     ModifyRequest.byCloid("BTC", cloid, newReq2)
+     * );
+     * JsonNode result = exchange.bulkModifyOrders(modifies);
+     * </pre>
+     *
+     * @param modifyRequests 批量修改请求列表
+     * @return 响应 JSON
+     */
+    public JsonNode bulkModifyOrders(List<ModifyRequest> modifyRequests) {
+        if (modifyRequests == null || modifyRequests.isEmpty()) {
+            throw new HypeError("Modify requests cannot be empty");
+        }
+
+        List<Map<String, Object>> modifies = new ArrayList<>();
+        for (ModifyRequest mr : modifyRequests) {
+            int assetId = ensureAssetId(mr.getCoinName());
+            OrderWire wire = Signing.orderRequestToOrderWire(assetId, mr.getNewOrder());
+            Map<String, Object> modify = new LinkedHashMap<>();
+            
+            // 支持 OID 或 Cloid
+            if (mr.getOid() != null) {
+                modify.put("oid", mr.getOid());
+            } else if (mr.getCloid() != null) {
+                modify.put("oid", mr.getCloid().getRaw());
+            } else {
+                throw new HypeError("Either oid or cloid must be provided for modify request");
+            }
+            
+            modify.put("order", wire);
+            modifies.add(modify);
+        }
+
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "batchModify");
+        action.put("modifies", modifies);
         return postAction(action);
     }
 
@@ -1378,6 +1447,81 @@ public class Exchange {
     }
 
     /**
+     * 市价平仓（与 Python market_close 对齐）。
+     * <p>
+     * 自动查询账户仓位，推断平仓方向（多仓卖出/空仓买入），并按市价平仓。
+     * <p>
+     * 使用示例：
+     * <pre>
+     * // 完全平仓
+     * Order result = exchange.marketClose("ETH", null, null, null);
+     *
+     * // 部分平仓
+     * Order result = exchange.marketClose("ETH", 0.5, null, null);
+     *
+     * // 自定义滑点
+     * Order result = exchange.marketClose("ETH", null, 0.1, null);
+     * </pre>
+     *
+     * @param coin     币种名称
+     * @param sz       平仓数量（可为 null，默认全平）
+     * @param slippage 滑点比例（可为 null，默认 0.05）
+     * @param cloid    客户端订单 ID（可为 null）
+     * @return 订单响应
+     * @throws HypeError 当无仓位可平时抛出
+     */
+    public Order marketClose(String coin, Double sz, Double slippage, Cloid cloid) {
+        // 查询当前仓位
+        double szi = inferSignedPosition(coin);
+        if (szi == 0.0) {
+            throw new HypeError("No position to close for coin " + coin);
+        }
+
+        // 推断平仓方向：持有多仓则卖出，持有空仓则买入
+        boolean isBuy = szi < 0;
+
+        // 确定平仓数量
+        double closeSz = (sz != null && sz > 0.0) ? sz : Math.abs(szi);
+
+        // 构建市价平仓请求
+        OrderRequest req = OrderRequest.Close.market(coin, isBuy, closeSz, cloid);
+
+        // 设置滑点（如果提供）
+        if (slippage != null) {
+            req.setSlippage(slippage);
+        }
+
+        return order(req);
+    }
+
+    /**
+     * 市价平仓（带 builder 支持）。
+     *
+     * @param coin     币种名称
+     * @param sz       平仓数量（可为 null）
+     * @param slippage 滑点比例（可为 null）
+     * @param cloid    客户端订单 ID（可为 null）
+     * @param builder  builder 信息（可为 null）
+     * @return 订单响应
+     */
+    public Order marketClose(String coin, Double sz, Double slippage, Cloid cloid, Map<String, Object> builder) {
+        double szi = inferSignedPosition(coin);
+        if (szi == 0.0) {
+            throw new HypeError("No position to close for coin " + coin);
+        }
+
+        boolean isBuy = szi < 0;
+        double closeSz = (sz != null && sz > 0.0) ? sz : Math.abs(szi);
+        OrderRequest req = OrderRequest.Close.market(coin, isBuy, closeSz, cloid);
+
+        if (slippage != null) {
+            req.setSlippage(slippage);
+        }
+
+        return order(req, builder);
+    }
+
+    /**
      * 一键限价全量平仓（根据账户当前仓位自动推断方向与数量）。
      *
      * @param tif     TIF 策略
@@ -1407,5 +1551,380 @@ public class Exchange {
      */
     private boolean isMainnet() {
         return Constants.MAINNET_API_URL.equals(hypeHttpClient.getBaseUrl());
+    }
+
+    // ==================== Spot 子账户转账（Sub Account Spot Transfer） ====================
+
+    /**
+     * Spot 子账户转账（与 Python SDK 的 sub_account_spot_transfer 对齐）。
+     * <p>
+     * 用于在主账户与 Spot 子账户之间转移现货代币。
+     * </p>
+     *
+     * @param subAccountUser 子账户用户地址（42 位十六进制格式）
+     * @param isDeposit      true 表示从主账户转入子账户，false 表示从子账户转回主账户
+     * @param token          代币名称（例如 "USDC"、"ETH" 等）
+     * @param amount         转账数量
+     * @return JSON 响应
+     */
+    public JsonNode subAccountSpotTransfer(String subAccountUser, boolean isDeposit, String token, double amount) {
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "subAccountSpotTransfer");
+        action.put("subAccountUser", subAccountUser);
+        action.put("isDeposit", isDeposit);
+        action.put("token", token);
+        action.put("amount", String.valueOf(amount));
+
+        return postAction(action);
+    }
+
+    // ==================== 多签操作（Multi-Sig） ====================
+
+    /**
+     * 多签操作（与 Python SDK 的 multi_sig 对齐）。
+     * <p>
+     * 用于多签账户执行操作，需要多个签名者的签名。
+     * </p>
+     *
+     * @param multiSigUser 多签账户地址（42 位十六进制格式）
+     * @param innerAction  内部动作（实际要执行的操作）
+     * @param signatures   所有签名者的签名列表（按地址排序）
+     * @param nonce        随机数/时间戳
+     * @param vaultAddress vault 地址（可为 null）
+     * @return JSON 响应
+     */
+    public JsonNode multiSig(
+            String multiSigUser,
+            Map<String, Object> innerAction,
+            List<Map<String, Object>> signatures,
+            long nonce,
+            String vaultAddress
+    ) {
+        // 构造 multiSig action
+        Map<String, Object> multiSigAction = new LinkedHashMap<>();
+        multiSigAction.put("type", "multiSig");
+        multiSigAction.put("signatureChainId", "0x66eee");
+        multiSigAction.put("signatures", signatures);
+
+        // 构造 payload
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("multiSigUser", multiSigUser.toLowerCase());
+        payload.put("outerSigner", wallet.getAddress().toLowerCase());
+        payload.put("action", innerAction);
+        multiSigAction.put("payload", payload);
+
+        // 签名
+        Map<String, Object> signature = Signing.signMultiSigAction(
+                wallet,
+                multiSigAction,
+                isMainnet(),
+                vaultAddress,
+                nonce,
+                null // expiresAfter
+        );
+
+        // 发送请求
+        return postActionWithSignature(multiSigAction, signature, nonce);
+    }
+
+    /**
+     * 多签操作（简化版，使用当前 vaultAddress）。
+     *
+     * @param multiSigUser 多签账户地址
+     * @param innerAction  内部动作
+     * @param signatures   签名列表
+     * @param nonce        随机数/时间戳
+     * @return JSON 响应
+     */
+    public JsonNode multiSig(
+            String multiSigUser,
+            Map<String, Object> innerAction,
+            List<Map<String, Object>> signatures,
+            long nonce
+    ) {
+        return multiSig(multiSigUser, innerAction, signatures, nonce, this.vaultAddress);
+    }
+
+    // ==================== PerpDeploy Oracle 设置 ====================
+
+    /**
+     * PerpDeploy Oracle 设置（与 Python SDK 的 perp_deploy_set_oracle 对齐）。
+     * <p>
+     * 用于 Builder-deployed perp dex 的 Oracle 价格更新。
+     * </p>
+     *
+     * @param dex             perp dex 名称
+     * @param oraclePxs       Oracle 价格 Map（币种名 -> 价格字符串）
+     * @param allMarkPxs      标记价格列表（每个元素是 Map<币种, 价格>）
+     * @param externalPerpPxs 外部永续价格 Map（币种名 -> 价格字符串）
+     * @return JSON 响应
+     */
+    public JsonNode perpDeploySetOracle(
+            String dex,
+            Map<String, String> oraclePxs,
+            List<Map<String, String>> allMarkPxs,
+            Map<String, String> externalPerpPxs
+    ) {
+        // 1. 排序 oraclePxs
+        List<List<String>> oraclePxsWire = new ArrayList<>();
+        if (oraclePxs != null) {
+            List<Map.Entry<String, String>> sorted = new ArrayList<>(oraclePxs.entrySet());
+            sorted.sort(Map.Entry.comparingByKey());
+            for (Map.Entry<String, String> entry : sorted) {
+                oraclePxsWire.add(Arrays.asList(entry.getKey(), entry.getValue()));
+            }
+        }
+
+        // 2. 排序 markPxs
+        List<List<List<String>>> markPxsWire = new ArrayList<>();
+        if (allMarkPxs != null) {
+            for (Map<String, String> markPxs : allMarkPxs) {
+                List<List<String>> markWire = new ArrayList<>();
+                List<Map.Entry<String, String>> sorted = new ArrayList<>(markPxs.entrySet());
+                sorted.sort(Map.Entry.comparingByKey());
+                for (Map.Entry<String, String> entry : sorted) {
+                    markWire.add(Arrays.asList(entry.getKey(), entry.getValue()));
+                }
+                markPxsWire.add(markWire);
+            }
+        }
+
+        // 3. 排序 externalPerpPxs
+        List<List<String>> externalPerpPxsWire = new ArrayList<>();
+        if (externalPerpPxs != null) {
+            List<Map.Entry<String, String>> sorted = new ArrayList<>(externalPerpPxs.entrySet());
+            sorted.sort(Map.Entry.comparingByKey());
+            for (Map.Entry<String, String> entry : sorted) {
+                externalPerpPxsWire.add(Arrays.asList(entry.getKey(), entry.getValue()));
+            }
+        }
+
+        // 4. 构造 action
+        Map<String, Object> setOracle = new LinkedHashMap<>();
+        setOracle.put("dex", dex);
+        setOracle.put("oraclePxs", oraclePxsWire);
+        setOracle.put("markPxs", markPxsWire);
+        setOracle.put("externalPerpPxs", externalPerpPxsWire);
+
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "perpDeploy");
+        action.put("setOracle", setOracle);
+
+        return postAction(action);
+    }
+
+    // ==================== EVM BigBlocks 开关 ====================
+
+    /**
+     * EVM BigBlocks 开关（与 Python SDK 的 use_big_blocks 对齐）。
+     * <p>
+     * 用于启用/禁用 EVM Big Blocks 功能。
+     * </p>
+     *
+     * @param enable true 表示启用，false 表示禁用
+     * @return JSON 响应
+     */
+    public JsonNode useBigBlocks(boolean enable) {
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "evmUserModify");
+        action.put("usingBigBlocks", enable);
+
+        return postAction(action);
+    }
+
+    // ==================== C Validator 操作（专业功能） ====================
+
+    /**
+     * C Validator 注册（与 Python SDK 的 c_validator_register 对齐）。
+     * <p>
+     * 用于注册新的验证者节点。
+     * </p>
+     *
+     * @param nodeIp              节点 IP 地址
+     * @param name                验证者名称
+     * @param description         验证者描述
+     * @param delegationsDisabled 是否禁用委托
+     * @param commissionBps       佣金比例（基点，1 bps = 0.01%）
+     * @param signer              签名者地址
+     * @param unjailed            是否解除监禱
+     * @param initialWei          初始质押数量（wei）
+     * @return JSON 响应
+     */
+    public JsonNode cValidatorRegister(
+            String nodeIp,
+            String name,
+            String description,
+            boolean delegationsDisabled,
+            int commissionBps,
+            String signer,
+            boolean unjailed,
+            long initialWei
+    ) {
+        // 构造 profile
+        Map<String, Object> nodeIpMap = new LinkedHashMap<>();
+        nodeIpMap.put("Ip", nodeIp);
+
+        Map<String, Object> profile = new LinkedHashMap<>();
+        profile.put("node_ip", nodeIpMap);
+        profile.put("name", name);
+        profile.put("description", description);
+        profile.put("delegations_disabled", delegationsDisabled);
+        profile.put("commission_bps", commissionBps);
+        profile.put("signer", signer);
+
+        // 构造 register
+        Map<String, Object> register = new LinkedHashMap<>();
+        register.put("profile", profile);
+        register.put("unjailed", unjailed);
+        register.put("initial_wei", initialWei);
+
+        // 构造 action
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "CValidatorAction");
+        action.put("register", register);
+
+        return postAction(action);
+    }
+
+    /**
+     * C Validator 更改配置（与 Python SDK 的 c_validator_change_profile 对齐）。
+     * <p>
+     * 用于修改验证者节点的配置信息。所有参数可为 null，仅更新非 null 参数。
+     * </p>
+     *
+     * @param nodeIp              节点 IP 地址（可为 null）
+     * @param name                验证者名称（可为 null）
+     * @param description         验证者描述（可为 null）
+     * @param unjailed            是否解除监禱
+     * @param disableDelegations  是否禁用委托（可为 null）
+     * @param commissionBps       佣金比例（可为 null）
+     * @param signer              签名者地址（可为 null）
+     * @return JSON 响应
+     */
+    public JsonNode cValidatorChangeProfile(
+            String nodeIp,
+            String name,
+            String description,
+            boolean unjailed,
+            Boolean disableDelegations,
+            Integer commissionBps,
+            String signer
+    ) {
+        // 构造 changeProfile
+        Map<String, Object> changeProfile = new LinkedHashMap<>();
+
+        if (nodeIp != null) {
+            Map<String, Object> nodeIpMap = new LinkedHashMap<>();
+            nodeIpMap.put("Ip", nodeIp);
+            changeProfile.put("node_ip", nodeIpMap);
+        } else {
+            changeProfile.put("node_ip", null);
+        }
+
+        changeProfile.put("name", name);
+        changeProfile.put("description", description);
+        changeProfile.put("unjailed", unjailed);
+        changeProfile.put("disable_delegations", disableDelegations);
+        changeProfile.put("commission_bps", commissionBps);
+        changeProfile.put("signer", signer);
+
+        // 构造 action
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "CValidatorAction");
+        action.put("changeProfile", changeProfile);
+
+        return postAction(action);
+    }
+
+    /**
+     * C Validator 注销（与 Python SDK 的 c_validator_unregister 对齐）。
+     * <p>
+     * 用于注销验证者节点。
+     * </p>
+     *
+     * @return JSON 响应
+     */
+    public JsonNode cValidatorUnregister() {
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "CValidatorAction");
+        action.put("unregister", null);
+
+        return postAction(action);
+    }
+
+    // ==================== C Signer 监禱操作（专业功能） ====================
+
+    /**
+     * C Signer 监禱自己（与 Python SDK 的 c_signer_jail_self 对齐）。
+     * <p>
+     * 用于验证者主动监禱自己的签名者。
+     * </p>
+     *
+     * @return JSON 响应
+     */
+    public JsonNode cSignerJailSelf() {
+        return cSignerInner("jailSelf");
+    }
+
+    /**
+     * C Signer 解除监禱（与 Python SDK 的 c_signer_unjail_self 对齐）。
+     * <p>
+     * 用于验证者解除签名者的监禱状态。
+     * </p>
+     *
+     * @return JSON 响应
+     */
+    public JsonNode cSignerUnjailSelf() {
+        return cSignerInner("unjailSelf");
+    }
+
+    /**
+     * C Signer 操作的内部实现。
+     *
+     * @param variant 操作类型（jailSelf 或 unjailSelf）
+     * @return JSON 响应
+     */
+    private JsonNode cSignerInner(String variant) {
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "CSignerAction");
+        action.put(variant, null);
+
+        return postAction(action);
+    }
+
+    // ==================== Noop 测试操作 ====================
+
+    /**
+     * Noop 测试操作（与 Python SDK 的 noop 对齐）。
+     * <p>
+     * 用于测试签名和网络连通性，不执行任何实际操作。
+     * </p>
+     *
+     * @param nonce 随机数/时间戳
+     * @return JSON 响应
+     */
+    public JsonNode noop(long nonce) {
+        Map<String, Object> action = new LinkedHashMap<>();
+        action.put("type", "noop");
+
+        // 使用自定义 nonce 进行签名
+        String effectiveVault = vaultAddress;
+        if (effectiveVault != null) {
+            effectiveVault = effectiveVault.toLowerCase();
+            String signerAddr = wallet.getAddress().toLowerCase();
+            if (effectiveVault.equals(signerAddr)) {
+                effectiveVault = null;
+            }
+        }
+
+        Map<String, Object> signature = Signing.signL1Action(
+                wallet,
+                action,
+                effectiveVault,
+                nonce,
+                null, // expiresAfter
+                isMainnet());
+
+        return postActionWithSignature(action, signature, nonce);
     }
 }

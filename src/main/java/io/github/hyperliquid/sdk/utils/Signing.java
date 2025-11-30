@@ -752,4 +752,98 @@ public final class Signing {
     public static boolean isStrictAddressLength() {
         return STRICT_ADDRESS_LENGTH;
     }
+
+    /**
+     * 多签动作签名（与 Python sign_multi_sig_action 对齐）。
+     * <p>
+     * 用于多签账户执行操作，需要构造特殊的 multiSigActionHash 并签名。
+     * </p>
+     *
+     * @param wallet         签名者钱包
+     * @param multiSigAction 多签动作对象（包含 payload 等字段）
+     * @param isMainnet      是否主网
+     * @param vaultAddress   vault 地址（可为 null）
+     * @param nonce          随机数/时间戳
+     * @param expiresAfter   过期时间（毫秒，可为 null）
+     * @return EIP-712 签名结果（Map 包含 r, s, v）
+     */
+    public static Map<String, Object> signMultiSigAction(
+            Credentials wallet,
+            Map<String, Object> multiSigAction,
+            boolean isMainnet,
+            String vaultAddress,
+            long nonce,
+            Long expiresAfter
+    ) {
+        // 1. 提取 payload
+        @SuppressWarnings("unchecked")
+        Map<String, Object> payload = (Map<String, Object>) multiSigAction.get("payload");
+        if (payload == null) {
+            throw new IllegalArgumentException("multiSigAction must contain 'payload'");
+        }
+
+        // 2. 提取 inner action
+        @SuppressWarnings("unchecked")
+        Map<String, Object> innerAction = (Map<String, Object>) payload.get("action");
+        if (innerAction == null) {
+            throw new IllegalArgumentException("payload must contain 'action'");
+        }
+
+        // 3. 计算 inner action 的哈希（与 L1 action 一致）
+        byte[] innerActionHash = actionHash(innerAction, nonce, vaultAddress, expiresAfter);
+
+        // 4. 构造 multiSigActionHash：将 innerActionHash 放入 payload
+        Map<String, Object> enrichedPayload = new LinkedHashMap<>(payload);
+        enrichedPayload.put("multiSigActionHash", "0x" + Numeric.toHexStringNoPrefix(innerActionHash));
+
+        // 5. 构造 EIP-712 TypedData
+        String chainId = isMainnet ? "0x66eee" : "0x66eef";
+        Map<String, Object> domain = new LinkedHashMap<>();
+        domain.put("name", "Exchange");
+        domain.put("version", "1");
+        domain.put("chainId", chainId);
+        domain.put("verifyingContract", "0x0000000000000000000000000000000000000000");
+
+        // MultiSig EIP-712 类型
+        Map<String, Object> multiSigType = new LinkedHashMap<>();
+        multiSigType.put("name", "multiSigUser");
+        multiSigType.put("type", "address");
+        Map<String, Object> outerSignerType = new LinkedHashMap<>();
+        outerSignerType.put("name", "outerSigner");
+        outerSignerType.put("type", "address");
+        Map<String, Object> actionType = new LinkedHashMap<>();
+        actionType.put("name", "action");
+        actionType.put("type", "string");
+        Map<String, Object> multiSigHashType = new LinkedHashMap<>();
+        multiSigHashType.put("name", "multiSigActionHash");
+        multiSigHashType.put("type", "bytes32");
+
+        Map<String, Object> types = new LinkedHashMap<>();
+        types.put("EIP712Domain", Arrays.asList(
+                Map.of("name", "name", "type", "string"),
+                Map.of("name", "version", "type", "string"),
+                Map.of("name", "chainId", "type", "string"),
+                Map.of("name", "verifyingContract", "type", "address")
+        ));
+        types.put("HyperliquidTransaction:MultiSig", Arrays.asList(
+                multiSigType,
+                outerSignerType,
+                actionType,
+                multiSigHashType
+        ));
+
+        Map<String, Object> typedData = new LinkedHashMap<>();
+        typedData.put("domain", domain);
+        typedData.put("types", types);
+        typedData.put("primaryType", "HyperliquidTransaction:MultiSig");
+        typedData.put("message", enrichedPayload);
+
+        // 6. EIP-712 签名（转换为 JSON 字符串）
+        try {
+            String typedDataJson = JSONUtil.writeValueAsString(typedData);
+            return signTypedData(wallet, typedDataJson);
+        } catch (Exception e) {
+            throw new RuntimeException("Failed to sign multi-sig action", e);
+        }
+    }
 }
