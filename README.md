@@ -34,38 +34,96 @@ multi-wallet management.
 
 ```mermaid
 classDiagram
+    %% Client Layer
     class HyperliquidClient {
-      +builder()
-      +getInfo()
-      +useExchange(privateKey)
-      +getAddress(privateKey)
+      +builder() Builder
+      +getInfo() Info
+      +useExchange(address) Exchange
+      +getSingleExchange() Exchange
     }
+    
+    %% API Layer
     class Info {
-      +l2Book(coin)
-      +candles(coin, interval)
-      +userState(address)
-      +subscribe(subscription, callback)
+      +l2Book(coin) L2Book
+      +userState(address) UserState
+      +subscribe(subscription, callback) void
     }
+    
     class Exchange {
-      +order(req)
-      +bulkOrders(requests)
-      +cancel(coin, oid)
-      +updateLeverage(coin, crossed, leverage)
+      +order(OrderRequest) Order
+      +bulkOrders(List) BulkOrderResponse
+      +cancel(coin, oid) CancelResponse
+      +updateLeverage(coin, leverage) void
     }
+    
+    class OrderRequest {
+      <<static factory>>
+      +Open.market(...) OrderRequest
+      +Open.limit(...) OrderRequest
+      +Close.market(...) OrderRequest
+      +Close.takeProfit(...) OrderRequest
+    }
+    
+    %% Network Layer
     class WebsocketManager {
-      +subscribe(JsonNode, MessageCallback)
-      +setMaxReconnectAttempts(int)
-      +setReconnectBackoffMs(initial, max)
+      +subscribe(subscription, callback) void
+      +setMaxReconnectAttempts(int) void
+      +setReconnectBackoffMs(initial, max) void
     }
+    
     class HypeHttpClient {
-      +post(String path, Object payload) 
+      +post(path, payload) JsonNode
     }
+    
+    %% Security Layer
+    class Signing {
+      <<utility>>
+      +signL1Action(...) Map
+      +signUserSignedAction(...) Map
+      +actionHash(...) byte[]
+    }
+    
+    %% Multi-Wallet Management
+    class ApiWallet {
+      +getPrimaryWalletAddress() String
+      +getCredentials() Credentials
+    }
+    
+    %% Relationships
     HyperliquidClient --> Info
     HyperliquidClient --> Exchange
-    Info --> WebsocketManager
-    Info --> HypeHttpClient
-    Exchange --> HypeHttpClient
+    HyperliquidClient --> ApiWallet : manages
+    
+    Info --> WebsocketManager : uses
+    Info --> HypeHttpClient : uses
+    
+    Exchange --> HypeHttpClient : uses
+    Exchange --> Signing : signs every action
+    Exchange --> ApiWallet : uses
+    Exchange ..> OrderRequest : creates
+    
+    OrderRequest ..> Signing : validated by
 ```
+
+### Core Components
+
+The SDK is organized into four architectural layers:
+
+**Client Layer**: `HyperliquidClient` serves as the unified entry point with builder pattern configuration. It manages multiple wallet credentials (`ApiWallet`) and provides seamless access to both Info and Exchange APIs. The multi-wallet design allows developers to switch between different trading accounts without recreating client instances.
+
+**API Layer**: `Info` handles market data queries via REST and real-time WebSocket subscriptions. `Exchange` manages all trading operations including orders, cancellations, and leverage adjustments. `OrderRequest` provides static factory methods (Open/Close helpers) to simplify order construction with type-safe builders.
+
+**Network Layer**: `HypeHttpClient` wraps HTTP communication with intelligent error classification (4xx/5xx). `WebsocketManager` implements robust connection handling with automatic reconnection, exponential backoff, and network availability monitoring.
+
+**Security Layer**: `Signing` is the core security component implementing EIP-712 typed data signing for Hyperliquid actions. It uses MessagePack-based hashing to generate action signatures, supporting both L1 actions (trading operations) and user-signed actions (fund transfers, approvals).
+
+### Key Workflows
+
+**Trading Flow**: Developers create orders using `OrderRequest.Open.limit(...)` or similar factory methods. When `Exchange.order(req)` is called, the Exchange validates the request and invokes `Signing.signL1Action` to generate an EIP-712 signature. The signed payload is sent via `HypeHttpClient.post` to the `/exchange` endpoint, returning an `Order` object with execution status and order ID.
+
+**WebSocket Flow**: Real-time data subscriptions begin with `Info.subscribe(subscription, callback)`. The `WebsocketManager` maintains persistent connections with periodic ping/pong heartbeats. On disconnection, it triggers exponential backoff retries while monitoring network availability. Upon successful reconnection, all active subscriptions are automatically re-established, ensuring zero data loss for critical market feeds.
+
+**Multi-Wallet Management**: `HyperliquidClient` stores multiple `ApiWallet` instances indexed by address. Developers can switch contexts using `useExchange(address)` to execute trades from different accounts. Each Exchange instance is bound to a specific wallet's credentials, with the `Signing` module handling per-wallet signature generation.
 
 ## Features
 
