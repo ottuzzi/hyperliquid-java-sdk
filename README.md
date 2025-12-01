@@ -153,7 +153,6 @@ public class Demo {
     - `skipWs(boolean)` disables WebSocket manager for `Info` when true.
     - `timeout(int)` sets OkHttp timeouts.
     - `okHttpClient(OkHttpClient)` injects a custom client.
-    - `enableDebugLogs()` enables package-level DEBUG logs.
 - WebSocket tuning via `Info`:
     - `setMaxReconnectAttempts(int)` (`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:897`).
     - `setNetworkCheckIntervalSeconds(int)` (`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:910`).

@@ -61,7 +61,6 @@ public class HyperliquidClientTest {
         client = HyperliquidClient.builder()
                 //.testNetUrl()
                 .addPrivateKey(TESTNET_PRIVATE_KEY)
-                .enableDebugLogs()
                 .build();
 
         address = client.getSingleAddress();
@@ -669,7 +668,6 @@ public class HyperliquidClientTest {
                 .testNetUrl()
                 .addPrivateKey(TESTNET_PRIVATE_KEY)
                 .skipWs(true)
-                .enableDebugLogs()
                 .build();
 
         Info info = noWsClient.getInfo();

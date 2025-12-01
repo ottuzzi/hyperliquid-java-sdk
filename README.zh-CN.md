@@ -153,7 +153,6 @@ public class QuickStart {
     - `skipWs(boolean)` 关闭 Info 的 WebSocket 管理。
     - `timeout(int)` 配置 OkHttp 超时。
     - `okHttpClient(OkHttpClient)` 注入自定义客户端。
-    - `enableDebugLogs()` 打开包级 DEBUG 日志。
 - WebSocket 调优（`Info`）：
     - `setMaxReconnectAttempts(int)`（`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:897`）。
     - `setNetworkCheckIntervalSeconds(int)`（`src/main/java/io/github/hyperliquid/sdk/apis/Info.java:910`）。
