@@ -263,38 +263,6 @@ public class HyperliquidClient {
         }
 
         /**
-         * Enable debug logging (deprecated - configure your logging framework instead).
-         * <p>
-         * This method sets a system property for slf4j-simple only and may not work
-         * with other logging implementations (logback, log4j2, etc.).
-         * <p>
-         * <b>Recommended approach:</b> Configure your logging framework directly:
-         * <ul>
-         *   <li>For logback: Set level in logback.xml or logback-test.xml</li>
-         *   <li>For log4j2: Set level in log4j2.xml</li>
-         *   <li>For slf4j-simple: Use simplelogger.properties or system property</li>
-         * </ul>
-         * <p>
-         * Example for logback.xml:
-         * <pre>
-         * &lt;logger name="io.github.hyperliquid.sdk" level="DEBUG"/&gt;
-         * </pre>
-         * <p>
-         * Example for simplelogger.properties:
-         * <pre>
-         * org.slf4j.simpleLogger.log.io.github.hyperliquid=DEBUG
-         * </pre>
-         *
-         * @return Builder instance
-         * @deprecated Configure your logging framework directly instead of using this method
-         */
-        @Deprecated
-        public Builder enableDebugLogs() {
-            System.setProperty("org.slf4j.simpleLogger.log.io.github.hyperliquid", "DEBUG");
-            return this;
-        }
-
-        /**
          * 禁用自动缓存预热（高级选项）。
          * <p>
          * 默认情况下，build() 会自动预热缓存以提升性能。

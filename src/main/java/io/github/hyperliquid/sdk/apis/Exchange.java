@@ -1574,14 +1574,6 @@ public class Exchange {
     }
 
     /**
-     * @deprecated 使用 {@link #closePositionMarket(String)} 代替
-     */
-    @Deprecated
-    public Order closePositionAtMarketAll(String coin) {
-        return closePositionMarket(coin);
-    }
-
-    /**
      * 市价平仓指定币种（支持部分平仓与自定义滑点）。
      * <p>
      * 自动查询账户仓位，推断平仓方向（多仓卖出/空仓买入），并按市价平仓。
@@ -1657,22 +1649,6 @@ public class Exchange {
     }
 
     /**
-     * @deprecated 使用 {@link #closePositionMarket(String, String, String, Cloid)} 代替
-     */
-    @Deprecated
-    public Order marketClose(String coin, String sz, String slippage, Cloid cloid) {
-        return closePositionMarket(coin, sz, slippage, cloid);
-    }
-
-    /**
-     * @deprecated 使用 {@link #closePositionMarket(String, String, String, Cloid, Map)} 代替
-     */
-    @Deprecated
-    public Order marketClose(String coin, String sz, String slippage, Cloid cloid, Map<String, Object> builder) {
-        return closePositionMarket(coin, sz, slippage, cloid, builder);
-    }
-
-    /**
      * 限价全量平仓指定币种（根据账户当前仓位自动推断方向与数量）。
      *
      * @param tif     TIF 策略
@@ -1689,14 +1665,6 @@ public class Exchange {
         }
         OrderRequest req = OrderRequest.Close.limit(tif, coin, String.valueOf(Math.abs(szi)), limitPx, cloid);
         return order(req);
-    }
-
-    /**
-     * @deprecated 使用 {@link #closePositionLimit(Tif, String, String, Cloid)} 代替
-     */
-    @Deprecated
-    public Order closePositionLimitAll(Tif tif, String coin, String limitPx, Cloid cloid) {
-        return closePositionLimit(tif, coin, limitPx, cloid);
     }
 
 
@@ -1761,14 +1729,6 @@ public class Exchange {
 
         // 批量下单平仓
         return bulkOrders(closeOrders);
-    }
-
-    /**
-     * @deprecated 使用 {@link #closeAllPositions()} 代替
-     */
-    @Deprecated
-    public JsonNode closePositionAll() {
-        return closeAllPositions();
     }
 
     /**
