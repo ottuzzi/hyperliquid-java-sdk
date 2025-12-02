@@ -7,6 +7,8 @@ import io.github.hyperliquid.sdk.utils.Constants;
 import io.github.hyperliquid.sdk.utils.HypeError;
 import io.github.hyperliquid.sdk.utils.HypeHttpClient;
 import okhttp3.OkHttpClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.ECKeyPair;
 import org.web3j.utils.Numeric;
@@ -21,6 +23,8 @@ import java.util.*;
  * 支持多个钱包凭证的管理与切换。
  */
 public class HyperliquidClient {
+
+    private static final Logger log = LoggerFactory.getLogger(HyperliquidClient.class);
 
     /**
      * Info 客户端
@@ -311,10 +315,7 @@ public class HyperliquidClient {
                 try {
                     info.warmUpCache();
                 } catch (Exception e) {
-                    // 预热失败不应阻止客户端创建，仅记录警告
-                    // 用户仍可正常使用 SDK，只是首次调用会有延迟
-                    System.err.println("[HyperliquidClient] Warning: Cache warm-up failed, but client is still usable. " +
-                            "First API calls may be slower. Error: " + e.getMessage());
+                    log.warn("[HyperliquidClient] Warning: Cache warm-up failed, but client is still usable. First API calls may be slower. Error: {}", e.getMessage());
                 }
             }
 
