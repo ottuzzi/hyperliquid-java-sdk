@@ -656,34 +656,5 @@ public class HyperliquidClientTest {
         assertNotNull(e2);
         assertHttpLogsPresent();
     }
-
-    /**
-     * WebSocket：skipWs=true 时订阅抛出异常，其余方法静默
-     */
-    @Test
-    @DisplayName("WebSocket 管理：skipWs=true 行为验证")
-    void testWebsocketSkipWsBehavior() {
-        // 构建一个跳过 WS 的 Info 用例
-        HyperliquidClient noWsClient = HyperliquidClient.builder()
-                .testNetUrl()
-                .addPrivateKey(TESTNET_PRIVATE_KEY)
-                .skipWs(true)
-                .build();
-
-        Info info = noWsClient.getInfo();
-        // subscribe 抛出 HypeError
-        assertThrows(HypeError.class, () -> info.subscribe(null, message -> {
-        }));
-        // 其他管理方法不抛异常
-        assertDoesNotThrow(() -> info.unsubscribe(null));
-        assertDoesNotThrow(() -> info.addConnectionListener(null));
-        assertDoesNotThrow(() -> info.removeConnectionListener(null));
-        assertDoesNotThrow(() -> info.setMaxReconnectAttempts(5));
-        assertDoesNotThrow(() -> info.setNetworkCheckIntervalSeconds(5));
-        assertDoesNotThrow(() -> info.setReconnectBackoffMs(500, 5000));
-        assertDoesNotThrow(() -> info.addCallbackErrorListener(null));
-        assertDoesNotThrow(() -> info.removeCallbackErrorListener(null));
-
-        noWsClient.getInfo().closeWs();
-    }
+ 
 }

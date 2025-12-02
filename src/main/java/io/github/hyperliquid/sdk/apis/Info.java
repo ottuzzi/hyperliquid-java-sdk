@@ -8,6 +8,7 @@ import com.github.benmanes.caffeine.cache.stats.CacheStats;
 import io.github.hyperliquid.sdk.config.CacheConfig;
 import io.github.hyperliquid.sdk.model.info.*;
 import io.github.hyperliquid.sdk.model.order.Cloid;
+import io.github.hyperliquid.sdk.model.subscription.Subscription;
 import io.github.hyperliquid.sdk.utils.HypeError;
 import io.github.hyperliquid.sdk.utils.HypeHttpClient;
 import io.github.hyperliquid.sdk.utils.JSONUtil;
@@ -1077,7 +1078,25 @@ public class Info {
     }
 
     /**
-     * 订阅 WebSocket。
+     * 订阅 WebSocket（类型安全版本，使用 Subscription 实体类）。
+     * <p>
+     * 推荐使用此方法，提供编译期类型检查和更好的代码可读性。
+     * </p>
+     *
+     * @param subscription 订阅对象（Subscription 实体类）
+     * @param callback     消息回调
+     */
+    public void subscribe(Subscription subscription, WebsocketManager.MessageCallback callback) {
+        if (skipWs)
+            throw new HypeError("WebSocket disabled by skipWs");
+        wsManager.subscribe(subscription, callback);
+    }
+
+    /**
+     * 订阅 WebSocket（兼容版本，使用 JsonNode）。
+     * <p>
+     * 为了更好的类型安全性，建议使用 {@link #subscribe(Subscription, WebsocketManager.MessageCallback)} 方法。
+     * </p>
      *
      * @param subscription 订阅对象
      * @param callback     消息回调
@@ -1089,7 +1108,18 @@ public class Info {
     }
 
     /**
-     * 取消订阅。
+     * 取消订阅（类型安全版本，使用 Subscription 实体类）。
+     *
+     * @param subscription 订阅对象（Subscription 实体类）
+     */
+    public void unsubscribe(Subscription subscription) {
+        if (skipWs)
+            return;
+        wsManager.unsubscribe(subscription);
+    }
+
+    /**
+     * 取消订阅（兼容版本，使用 JsonNode）。
      *
      * @param subscription 订阅对象
      */
@@ -1132,18 +1162,6 @@ public class Info {
     }
 
     /**
-     * 设置最大重连尝试次数（默认 5）。
-     *
-     * @param max 最大次数（建议 5~10）
-     */
-    public void setMaxReconnectAttempts(int max) {
-        if (skipWs)
-            return;
-        if (wsManager != null)
-            wsManager.setMaxReconnectAttempts(max);
-    }
-
-    /**
      * 设置网络监控的检查间隔（秒）。
      *
      * @param seconds 间隔秒数（默认 5，建议 3~10）
@@ -1166,6 +1184,38 @@ public class Info {
             return;
         if (wsManager != null)
             wsManager.setReconnectBackoffMs(initialMs, maxMs);
+    }
+
+    /**
+     * 设置自定义网络探测 URL。
+     * <p>
+     * 默认情况下，WebSocket 管理器使用 API baseUrl 进行网络可用性探测。
+     * 在某些企业环境或特殊网络配置下，可能需要指定专门的探测地址。
+     * </p>
+     *
+     * @param url 自定义网络探测 URL（如 "https://www.google.com"）
+     */
+    public void setNetworkProbeUrl(String url) {
+        if (skipWs)
+            return;
+        if (wsManager != null)
+            wsManager.setNetworkProbeUrl(url);
+    }
+
+    /**
+     * 启用或禁用网络探测功能。
+     * <p>
+     * 网络探测用于在 WebSocket 断线时周期性检查网络可用性，当网络恢复时自动触发重连。
+     * 在某些场景下（如始终可用的内网环境），可以禁用探测以减少不必要的 HTTP 请求。
+     * </p>
+     *
+     * @param disabled true=禁用网络探测，false=启用网络探测（默认启用）
+     */
+    public void setNetworkProbeDisabled(boolean disabled) {
+        if (skipWs)
+            return;
+        if (wsManager != null)
+            wsManager.setNetworkProbeDisabled(disabled);
     }
 
     /**

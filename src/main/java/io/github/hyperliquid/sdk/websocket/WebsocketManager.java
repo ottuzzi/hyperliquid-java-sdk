@@ -1,6 +1,7 @@
 package io.github.hyperliquid.sdk.websocket;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import io.github.hyperliquid.sdk.model.subscription.Subscription;
 import io.github.hyperliquid.sdk.utils.JSONUtil;
 import okhttp3.*;
 import okio.ByteString;
@@ -56,20 +57,11 @@ public class WebsocketManager {
      * 当前连接是否已建立
      */
     private volatile boolean connected = false;
-    /**
-     * 是否处于重连流程中
-     */
-    private volatile boolean reconnecting = false;
-
 
     /**
      * 已尝试的重连次数
      */
     private int reconnectAttempts = 0;
-    /**
-     * 最大重连尝试次数（可配置，默认 5 次）
-     */
-    private int maxReconnectAttempts = 5;
     /**
      * 当前重连延迟毫秒数（指数退避）初始 1s（可配置）
      */
@@ -113,6 +105,10 @@ public class WebsocketManager {
      * 活跃订阅集合，按标识符分组存储并去重
      */
     private final Map<String, List<ActiveSubscription>> subscriptions = new ConcurrentHashMap<>();
+    /**
+     * 标识符缓存（优化字符串拼接性能）
+     */
+    private final Map<String, String> identifierCache = new ConcurrentHashMap<>();
     /**
      * 定时任务调度器（用于心跳、重连与网络监控）
      */
@@ -240,7 +236,6 @@ public class WebsocketManager {
             @Override
             public void onOpen(@NotNull WebSocket webSocket, @NotNull Response response) {
                 connected = true;
-                reconnecting = false;
                 reconnectAttempts = 0;
                 backoffMs = initialBackoffMs;
                 stopNetworkMonitor();
@@ -309,9 +304,9 @@ public class WebsocketManager {
     }
 
     /**
-     * 发送 ping 消息
+     * 发送 ping 消息（内部方法，由定时器自动调用）
      */
-    public void sendPing() {
+    private void sendPing() {
         if (webSocket != null && connected) {
             Map<String, Object> payload = Map.of("method", "ping");
             try {
@@ -326,19 +321,48 @@ public class WebsocketManager {
      */
     public void stop() {
         stopped = true;
-        scheduler.shutdownNow();
-        if (reconnectFuture != null)
-            reconnectFuture.cancel(false);
-        if (networkMonitorFuture != null)
-            networkMonitorFuture.cancel(false);
+
+        // 先取消所有计划任务
+        cancelTask(reconnectFuture);
+        cancelTask(networkMonitorFuture);
+
+        // 关闭 WebSocket 连接
         if (webSocket != null) {
-            webSocket.close(1000, "stop");
+            try {
+                webSocket.close(1000, "stop");
+            } catch (Exception ignored) {
+            }
+            webSocket = null;
+        }
+
+        // 优雅关闭调度器
+        try {
+            scheduler.shutdown();
+            if (!scheduler.awaitTermination(2, TimeUnit.SECONDS)) {
+                scheduler.shutdownNow();
+            }
+        } catch (InterruptedException e) {
+            scheduler.shutdownNow();
+            Thread.currentThread().interrupt();
+        }
+
+        // 关闭 OkHttpClient 资源（释放连接池和线程池）
+        try {
+            client.dispatcher().executorService().shutdown();
+            client.connectionPool().evictAll();
+        } catch (Exception ignored) {
+        }
+
+        try {
+            networkClient.dispatcher().executorService().shutdown();
+            networkClient.connectionPool().evictAll();
+        } catch (Exception ignored) {
         }
     }
 
     /**
-     * 安排一次重连尝试（带指数退避与最大次数限制）。
-     * 初始 1s，最大 30s，默认最多 5 次；同时启动网络监控，当网络恢复时将立即触发一次重连。
+     * 安排一次重连尝试（带指数退避，无限重试直到成功）。
+     * 初始 1s，最大 30s，无限重试；同时启动网络监控，当网络恢复时将立即触发一次重连。
      */
     private synchronized void scheduleReconnect(Throwable cause, Integer code, String reason) {
         if (stopped)
@@ -352,21 +376,12 @@ public class WebsocketManager {
             webSocket = null;
         }
 
-        // 达到最大次数：停止重连，等待网络监控触发或外部重新调用 connect
-        if (reconnectAttempts >= maxReconnectAttempts) {
-            notifyReconnectFailed(reconnectAttempts, cause);
-            startNetworkMonitor();
-            return;
-        }
-
         long nextDelay = backoffMs + (long) (Math.random() * 250L); // 少量抖动
         notifyReconnecting(reconnectAttempts + 1, nextDelay);
 
-        if (reconnectFuture != null)
-            reconnectFuture.cancel(false);
+        cancelTask(reconnectFuture);
         reconnectFuture = scheduler.schedule(() -> {
             if (!stopped) {
-                reconnecting = true;
                 connect();
             }
         }, nextDelay, TimeUnit.MILLISECONDS);
@@ -394,10 +409,10 @@ public class WebsocketManager {
                 // 网络可用且当前未连接：尝试快速重连（重置退避与次数）
                 if (!connected && !stopped) {
                     backoffMs = initialBackoffMs;
-                    reconnectAttempts = Math.min(reconnectAttempts, maxReconnectAttempts); // 保持统计
-                    if (reconnectFuture != null)
-                        reconnectFuture.cancel(false);
-                    notifyReconnecting(reconnectAttempts + 1, 0);
+                    // 网络恢复后重置计数器，允许重新开始重连尝试
+                    reconnectAttempts = 0;
+                    cancelTask(reconnectFuture);
+                    notifyReconnecting(1, 0);
                     reconnectFuture = scheduler.schedule(this::connect, 0, TimeUnit.MILLISECONDS);
                 }
             } else {
@@ -421,21 +436,40 @@ public class WebsocketManager {
     }
 
     /**
-     * 简单的网络可用性探测：HEAD 请求 baseUrl，允许 2xx/3xx
+     * 增强的网络可用性探测：HEAD 请求 baseUrl，允许 2xx/3xx，支持重试
      */
     private boolean isNetworkAvailable() {
         if (probeDisabled) {
             return true;
         }
         String url = probeUrl != null ? probeUrl : baseUrl;
-        try {
-            Request req = new Request.Builder().url(url).head().build();
-            try (Response resp = networkClient.newCall(req).execute()) {
-                return resp.code() < 400;
+        int maxRetries = 2;
+        long retryDelayMs = 100;
+
+        for (int attempt = 0; attempt < maxRetries; attempt++) {
+            try {
+                Request req = new Request.Builder().url(url).head().build();
+                try (Response resp = networkClient.newCall(req).execute()) {
+                    if (resp.code() < 400) {
+                        return true;
+                    }
+                }
+            } catch (Exception e) {
+                // 最后一次尝试失败才返回 false
+                if (attempt == maxRetries - 1) {
+                    LOG.log(Level.FINE, "网络探测失败，已重试 " + maxRetries + " 次", e);
+                    return false;
+                }
+                // 非最后一次尝试，等待后重试
+                try {
+                    Thread.sleep(retryDelayMs);
+                } catch (InterruptedException ie) {
+                    Thread.currentThread().interrupt();
+                    return false;
+                }
             }
-        } catch (Exception e) {
-            return false;
         }
+        return false;
     }
 
     public void setNetworkProbeUrl(String url) {
@@ -479,13 +513,6 @@ public class WebsocketManager {
     }
 
     /**
-     * 设置最大重连次数（默认 5）
-     */
-    public void setMaxReconnectAttempts(int max) {
-        this.maxReconnectAttempts = Math.max(0, max);
-    }
-
-    /**
      * 设置网络监控检查间隔秒数（默认 5）
      */
     public void setNetworkCheckIntervalSeconds(int seconds) {
@@ -506,105 +533,104 @@ public class WebsocketManager {
         this.configMaxBackoffMs = Math.min(maxBackoffMs, max);
     }
 
-    // 监听器通知封装（防御式，单个监听异常不影响其它监听）
-    private void notifyConnecting() {
-        synchronized (connectionListeners) {
-            for (ConnectionListener l : connectionListeners) {
+    /**
+     * 安全取消定时任务
+     */
+    private void cancelTask(ScheduledFuture<?> future) {
+        if (future != null && !future.isCancelled()) {
+            future.cancel(false);
+        }
+    }
+
+    /**
+     * 通用监听器通知方法（防御式，单个监听异常不影响其它监听）
+     */
+    private <T> void notifyListeners(List<T> listeners, java.util.function.Consumer<T> action) {
+        synchronized (listeners) {
+            for (T listener : listeners) {
                 try {
-                    l.onConnecting(wsUrl);
+                    action.accept(listener);
                 } catch (Exception ignored) {
                 }
             }
         }
+    }
+
+    // 监听器通知封装（使用通用方法减少重复代码）
+    private void notifyConnecting() {
+        notifyListeners(connectionListeners, l -> l.onConnecting(wsUrl));
     }
 
     private void notifyConnected() {
-        synchronized (connectionListeners) {
-            for (ConnectionListener l : connectionListeners) {
-                try {
-                    l.onConnected(wsUrl);
-                } catch (Exception ignored) {
-                }
-            }
-        }
+        notifyListeners(connectionListeners, l -> l.onConnected(wsUrl));
     }
 
     private void notifyDisconnected(int code, String reason, Throwable cause) {
-        synchronized (connectionListeners) {
-            for (ConnectionListener l : connectionListeners) {
-                try {
-                    l.onDisconnected(wsUrl, code, reason, cause);
-                } catch (Exception ignored) {
-                }
-            }
-        }
+        notifyListeners(connectionListeners, l -> l.onDisconnected(wsUrl, code, reason, cause));
     }
 
     private void notifyReconnecting(int attempt, long nextDelayMs) {
-        synchronized (connectionListeners) {
-            for (ConnectionListener l : connectionListeners) {
-                try {
-                    l.onReconnecting(wsUrl, attempt, nextDelayMs);
-                } catch (Exception ignored) {
-                }
-            }
-        }
+        notifyListeners(connectionListeners, l -> l.onReconnecting(wsUrl, attempt, nextDelayMs));
     }
 
     private void notifyReconnectFailed(int attempted, Throwable lastError) {
-        synchronized (connectionListeners) {
-            for (ConnectionListener l : connectionListeners) {
-                try {
-                    l.onReconnectFailed(wsUrl, attempted, lastError);
-                } catch (Exception ignored) {
-                }
-            }
-        }
+        notifyListeners(connectionListeners, l -> l.onReconnectFailed(wsUrl, attempted, lastError));
     }
 
     private void notifyNetworkUnavailable() {
-        synchronized (connectionListeners) {
-            for (ConnectionListener l : connectionListeners) {
-                try {
-                    l.onNetworkUnavailable(wsUrl);
-                } catch (Exception ignored) {
-                }
-            }
-        }
+        notifyListeners(connectionListeners, l -> l.onNetworkUnavailable(wsUrl));
     }
 
     private void notifyNetworkAvailable() {
-        synchronized (connectionListeners) {
-            for (ConnectionListener l : connectionListeners) {
-                try {
-                    l.onNetworkAvailable(wsUrl);
-                } catch (Exception ignored) {
-                }
-            }
-        }
+        notifyListeners(connectionListeners, l -> l.onNetworkAvailable(wsUrl));
     }
 
     /**
-     * 通知：用户回调异常（防御式，单个监听异常不影响其它监听）
+     * 通知：用户回调异常
      */
     private void notifyCallbackError(String identifier, JsonNode msg, Throwable error) {
-        synchronized (callbackErrorListeners) {
-            for (CallbackErrorListener l : callbackErrorListeners) {
-                try {
-                    l.onCallbackError(wsUrl, identifier, msg, error);
-                } catch (Exception ignored) {
-                }
-            }
-        }
+        notifyListeners(callbackErrorListeners, l -> l.onCallbackError(wsUrl, identifier, msg, error));
     }
 
     /**
-     * 订阅消息。
+     * 订阅消息（类型安全版本，使用 Subscription 实体类）。
+     *
+     * @param subscription 订阅对象（Subscription 实体类）
+     * @param callback     回调
+     */
+    public void subscribe(Subscription subscription, MessageCallback callback) {
+        if (stopped) {
+            throw new IllegalStateException("WebsocketManager has been stopped, cannot subscribe");
+        }
+        if (subscription == null) {
+            throw new IllegalArgumentException("subscription cannot be null");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("callback cannot be null");
+        }
+
+        // 将 Subscription 对象转换为 JsonNode
+        JsonNode jsonNode = JSONUtil.convertValue(subscription, JsonNode.class);
+        subscribe(jsonNode, callback);
+    }
+
+    /**
+     * 订阅消息（兼容版本，使用 JsonNode）。
      *
      * @param subscription 订阅对象
      * @param callback     回调
      */
     public void subscribe(JsonNode subscription, MessageCallback callback) {
+        if (stopped) {
+            throw new IllegalStateException("WebsocketManager has been stopped, cannot subscribe");
+        }
+        if (subscription == null) {
+            throw new IllegalArgumentException("subscription cannot be null");
+        }
+        if (callback == null) {
+            throw new IllegalArgumentException("callback cannot be null");
+        }
+
         String identifier = subscriptionToIdentifier(subscription);
         List<ActiveSubscription> list = subscriptions.computeIfAbsent(identifier, k -> new CopyOnWriteArrayList<>());
         for (ActiveSubscription s : list) {
@@ -617,6 +643,9 @@ public class WebsocketManager {
     }
 
     private void sendSubscribe(JsonNode subscription) {
+        if (webSocket == null || !connected) {
+            return;
+        }
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("method", "subscribe");
         payload.put("subscription", subscription);
@@ -627,11 +656,30 @@ public class WebsocketManager {
     }
 
     /**
-     * 取消订阅。
+     * 取消订阅（类型安全版本，使用 Subscription 实体类）。
+     *
+     * @param subscription 订阅对象（Subscription 实体类）
+     */
+    public void unsubscribe(Subscription subscription) {
+        if (subscription == null) {
+            throw new IllegalArgumentException("subscription cannot be null");
+        }
+
+        // 将 Subscription 对象转换为 JsonNode
+        JsonNode jsonNode = JSONUtil.convertValue(subscription, JsonNode.class);
+        unsubscribe(jsonNode);
+    }
+
+    /**
+     * 取消订阅（兼容版本，使用 JsonNode）。
      *
      * @param subscription 订阅对象
      */
     public void unsubscribe(JsonNode subscription) {
+        if (subscription == null) {
+            throw new IllegalArgumentException("subscription cannot be null");
+        }
+
         String identifier = subscriptionToIdentifier(subscription);
         List<ActiveSubscription> list = subscriptions.get(identifier);
         if (list != null) {
@@ -639,6 +687,11 @@ public class WebsocketManager {
             if (list.isEmpty())
                 subscriptions.remove(identifier);
         }
+
+        if (webSocket == null || !connected) {
+            return;
+        }
+
         Map<String, Object> payload = new LinkedHashMap<>();
         payload.put("method", "unsubscribe");
         payload.put("subscription", subscription);
@@ -650,6 +703,8 @@ public class WebsocketManager {
 
     /**
      * 将订阅对象转换为标识符（用于多订阅去重与路由）。
+     * <p>
+     * 该方法为包级可见，主要供内部使用和单元测试。
      * 频道标识符约定：
      * - l2Book:{coin}，trades:{coin}，bbo:{coin}，candle:{coin},{interval}
      * - userEvents，orderUpdates，allMids
@@ -657,8 +712,9 @@ public class WebsocketManager {
      * userFills:{user}，userFundings:{user}，userNonFundingLedgerUpdates:{user}，webData2:{user}
      * - activeAssetCtx:{coin}，activeAssetData:{coin},{user}
      * - coin 可为字符串或整数；字符串统一转换为小写。
+     * </p>
      */
-    public String subscriptionToIdentifier(JsonNode subscription) {
+    String subscriptionToIdentifier(JsonNode subscription) {
         if (subscription == null || !subscription.has("type"))
             return "unknown";
         String type = subscription.get("type").asText();
@@ -669,29 +725,23 @@ public class WebsocketManager {
                 return type;
             case "l2Book": {
                 JsonNode coinNode = subscription.get("coin");
-                String coinKey = coinNode == null ? null
-                        : (coinNode.isNumber() ? String.valueOf(coinNode.asInt())
-                        : coinNode.asText().toLowerCase(Locale.ROOT));
-                return coinKey == null ? type : type + ":" + coinKey;
+                String coinKey = extractCoinIdentifier(coinNode);
+                return buildCachedIdentifier(type, coinKey);
             }
             case "trades":
             case "bbo":
             case "activeAssetCtx": {
                 JsonNode coinNode = subscription.get("coin");
-                String coinKey = coinNode == null ? null
-                        : (coinNode.isNumber() ? String.valueOf(coinNode.asInt())
-                        : coinNode.asText().toLowerCase(Locale.ROOT));
-                return coinKey == null ? type : type + ":" + coinKey;
+                String coinKey = extractCoinIdentifier(coinNode);
+                return buildCachedIdentifier(type, coinKey);
             }
             case "candle": {
                 JsonNode coinNode = subscription.get("coin");
                 JsonNode iNode = subscription.get("interval");
-                String coinKey = coinNode == null ? null
-                        : (coinNode.isNumber() ? String.valueOf(coinNode.asInt())
-                        : coinNode.asText().toLowerCase(Locale.ROOT));
+                String coinKey = extractCoinIdentifier(coinNode);
                 String interval = iNode == null ? null : iNode.asText();
                 if (coinKey != null && interval != null)
-                    return type + ":" + coinKey + "," + interval;
+                    return buildCachedIdentifier(type, coinKey + "," + interval);
                 return type;
             }
             case "userFills":
@@ -700,17 +750,15 @@ public class WebsocketManager {
             case "webData2": {
                 JsonNode userNode = subscription.get("user");
                 String user = userNode == null ? null : userNode.asText().toLowerCase(Locale.ROOT);
-                return user == null ? type : type + ":" + user;
+                return buildCachedIdentifier(type, user);
             }
             case "activeAssetData": {
                 JsonNode coinNode = subscription.get("coin");
                 JsonNode userNode = subscription.get("user");
-                String coinKey = coinNode == null ? null
-                        : (coinNode.isNumber() ? String.valueOf(coinNode.asInt())
-                        : coinNode.asText().toLowerCase(Locale.ROOT));
+                String coinKey = extractCoinIdentifier(coinNode);
                 String user = userNode == null ? null : userNode.asText().toLowerCase(Locale.ROOT);
                 if (coinKey != null && user != null)
-                    return type + ":" + coinKey + "," + user;
+                    return buildCachedIdentifier(type, coinKey + "," + user);
                 return type;
             }
             default:
@@ -719,10 +767,33 @@ public class WebsocketManager {
     }
 
     /**
-     * 从消息中提取标识符，与 subscriptionToIdentifier 对应。
-     * 兼容两种消息格式：channel 为字符串或对象（{type: ..., ...}）。
+     * 提取 Coin 标识符（封装重复逻辑）
      */
-    public String wsMsgToIdentifier(JsonNode msg) {
+    private String extractCoinIdentifier(JsonNode coinNode) {
+        if (coinNode == null) return null;
+        return coinNode.isNumber()
+                ? String.valueOf(coinNode.asInt())
+                : coinNode.asText().toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * 构建带缓存的标识符（优化字符串拼接性能）
+     */
+    private String buildCachedIdentifier(String type, String suffix) {
+        if (suffix == null) return type;
+
+        String cacheKey = type + "|" + suffix;
+        return identifierCache.computeIfAbsent(cacheKey, k -> type + ":" + suffix);
+    }
+
+    /**
+     * 从消息中提取标识符，与 subscriptionToIdentifier 对应。
+     * <p>
+     * 该方法为包级可见，主要供内部使用和单元测试。
+     * 兼容两种消息格式：channel 为字符串或对象（{type: ..., ...}）。
+     * </p>
+     */
+    String wsMsgToIdentifier(JsonNode msg) {
         if (msg == null || !msg.has("channel"))
             return null;
         JsonNode channelNode = msg.get("channel");
@@ -742,9 +813,8 @@ public class WebsocketManager {
                 return type;
             case "l2Book": {
                 JsonNode coinNode = msg.path("data").path("coin");
-                String coinKey = coinNode.isNumber() ? String.valueOf(coinNode.asInt())
-                        : (coinNode.isTextual() ? coinNode.asText().toLowerCase(Locale.ROOT) : null);
-                return coinKey != null ? type + ":" + coinKey : type;
+                String coinKey = extractCoinIdentifier(coinNode);
+                return buildCachedIdentifier(type, coinKey);
             }
             case "trades": {
                 JsonNode trades = msg.get("data");
@@ -753,11 +823,10 @@ public class WebsocketManager {
                     JsonNode first = trades.get(0);
                     JsonNode coinNode = first.get("coin");
                     if (coinNode != null) {
-                        coinKey = coinNode.isTextual() ? coinNode.asText().toLowerCase(Locale.ROOT)
-                                : (coinNode.isNumber() ? String.valueOf(coinNode.asInt()) : null);
+                        coinKey = extractCoinIdentifier(coinNode);
                     }
                 }
-                return coinKey != null ? type + ":" + coinKey : type;
+                return buildCachedIdentifier(type, coinKey);
             }
             case "candle": {
                 JsonNode data = msg.get("data");
@@ -765,15 +834,14 @@ public class WebsocketManager {
                     String s = data.path("s").asText(null);
                     String i = data.path("i").asText(null);
                     if (s != null && i != null)
-                        return type + ":" + s.toLowerCase(Locale.ROOT) + "," + i;
+                        return buildCachedIdentifier(type, s.toLowerCase(Locale.ROOT) + "," + i);
                 }
                 return type;
             }
             case "bbo": {
                 JsonNode coinNode = msg.path("data").path("coin");
-                String coinKey = coinNode.isTextual() ? coinNode.asText().toLowerCase(Locale.ROOT)
-                        : (coinNode.isNumber() ? String.valueOf(coinNode.asInt()) : null);
-                return coinKey != null ? type + ":" + coinKey : type;
+                String coinKey = extractCoinIdentifier(coinNode);
+                return buildCachedIdentifier(type, coinKey);
             }
             case "userFills":
             case "userFundings":
@@ -782,30 +850,27 @@ public class WebsocketManager {
                 JsonNode userNode = msg.path("data").path("user");
                 String user = (userNode != null && userNode.isTextual()) ? userNode.asText().toLowerCase(Locale.ROOT)
                         : null;
-                return user != null ? type + ":" + user : type;
+                return buildCachedIdentifier(type, user);
             }
             case "activeAssetCtx":
             case "activeSpotAssetCtx": {
                 JsonNode coinNode = msg.path("data").path("coin");
-                String coinKey = coinNode.isTextual() ? coinNode.asText().toLowerCase(Locale.ROOT)
-                        : (coinNode.isNumber() ? String.valueOf(coinNode.asInt()) : null);
-                return type.equals("activeSpotAssetCtx") ? "activeAssetCtx:" + (coinKey != null ? coinKey : "unknown")
-                        : (coinKey != null ? type + ":" + coinKey : type);
+                String coinKey = extractCoinIdentifier(coinNode);
+                return type.equals("activeSpotAssetCtx")
+                        ? buildCachedIdentifier("activeAssetCtx", coinKey != null ? coinKey : "unknown")
+                        : buildCachedIdentifier(type, coinKey);
             }
             case "activeAssetData": {
                 JsonNode data = msg.get("data");
                 if (data != null) {
                     JsonNode coinNode = data.get("coin");
                     JsonNode userNode = data.get("user");
-                    String coinKey = coinNode != null
-                            ? (coinNode.isTextual() ? coinNode.asText().toLowerCase(Locale.ROOT)
-                            : (coinNode.isNumber() ? String.valueOf(coinNode.asInt()) : null))
-                            : null;
+                    String coinKey = extractCoinIdentifier(coinNode);
                     String user = (userNode != null && userNode.isTextual())
                             ? userNode.asText().toLowerCase(Locale.ROOT)
                             : null;
                     if (coinKey != null && user != null)
-                        return type + ":" + coinKey + "," + user;
+                        return buildCachedIdentifier(type, coinKey + "," + user);
                 }
                 return type;
             }

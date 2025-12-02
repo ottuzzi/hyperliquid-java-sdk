@@ -103,7 +103,7 @@ public class Exchange {
      * @param coinName 币种名
      * @param crossed  是否全仓
      * @param leverage 杠杆倍数
-     * @return 响应 JSON
+     * @return UpdateLeverage
      *
      */
     public UpdateLeverage updateLeverage(String coinName, boolean crossed, int leverage) {
@@ -310,24 +310,24 @@ public class Exchange {
         // 获取第一个订单的币种（positionTpsl 所有订单应该是同一个币种）
         OrderRequest firstOrder = orders.getFirst();
         String coin = firstOrder.getCoin();
-    
+
         // 检查是否需要自动推断（isBuy 或 sz 为 null）
         boolean needsInference = firstOrder.getIsBuy() == null || firstOrder.getSz() == null;
-    
+
         if (!needsInference) {
             return;
         }
-    
+
         // 自动查询仓位并推断
         double szi = inferSignedPosition(coin);
         if (szi == 0.0) {
             throw new HypeError("No position found for " + coin + ". Cannot auto-infer direction and size for positionTpsl.");
         }
-    
+
         // 推断方向和数量
         boolean isBuy = szi > 0; // 多仓需要卖出平仓，所以 isBuy=true 表示多仓
         String sz = String.valueOf(Math.abs(szi));
-    
+
         // 填充所有订单的方向和数量
         for (OrderRequest order : orders) {
             if (order.getIsBuy() == null) {
@@ -1666,7 +1666,6 @@ public class Exchange {
         OrderRequest req = OrderRequest.Close.limit(tif, coin, String.valueOf(Math.abs(szi)), limitPx, cloid);
         return order(req);
     }
-
 
 
     /**
