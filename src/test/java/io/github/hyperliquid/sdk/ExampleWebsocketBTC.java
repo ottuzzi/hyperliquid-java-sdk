@@ -1,7 +1,14 @@
 package io.github.hyperliquid.sdk;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import io.github.hyperliquid.sdk.apis.Info;
+import io.github.hyperliquid.sdk.model.info.Candle;
+import io.github.hyperliquid.sdk.model.info.CandleInterval;
 import io.github.hyperliquid.sdk.model.subscription.TradesSubscription;
+import io.github.hyperliquid.sdk.utils.JSONUtil;
+import org.junit.jupiter.api.Test;
+
+import java.util.List;
 
 /**
  * WebSocket 订阅 BTC 行情示例
@@ -34,5 +41,16 @@ public class ExampleWebsocketBTC {
         info.subscribe(ethTrades, msg -> {
             System.out.println("ETH 成交: " + msg);
         });
+    }
+
+    @Test
+    public void candleSnapshotByCount() throws JsonProcessingException {
+        HyperliquidClient client = HyperliquidClient.builder()
+                //.testNetUrl()
+                //.addPrivateKey(TESTNET_PRIVATE_KEY)
+                .build();
+        Info info = client.getInfo();
+        List<Candle> candles = info.candleSnapshotByCount("BTC", CandleInterval.MINUTE_15, 1000);
+        System.out.println(JSONUtil.writeValueAsString(candles));
     }
 }
