@@ -178,13 +178,29 @@ import io.github.hyperliquid.sdk.utils.JSONUtil;
 
 public class QuickStart {
     public static void main(String[] args) {
-        String pk = System.getenv("HYPERLIQUID_PRIVATE_KEY");
-        if (pk == null || pk.isBlank()) throw new IllegalStateException("请设置 HYPERLIQUID_PRIVATE_KEY");
+        // 推荐使用 API 钱包方式构建客户端,更安全
+        // API 钱包: 主钱包授权的子钱包,可限制权限,主私钥不会暴露在交易中
+        // 主私钥钱包: 直接使用主钱包私钥,拥有完全控制权,风险较高
+        String primaryWalletAddress = System.getenv("PRIMARY_WALLET_ADDRESS");  // 主钱包地址
+        String apiWalletPrivateKey = System.getenv("API_WALLET_PRIVATE_KEY");   // API 钱包私钥
+        if (primaryWalletAddress == null || apiWalletPrivateKey == null) {
+            throw new IllegalStateException("请设置 PRIMARY_WALLET_ADDRESS 和 API_WALLET_PRIVATE_KEY");
+        }
 
+        // 使用 API 钱包构建客户端(推荐)
+        // 第一个参数: 主钱包地址(用于查询账户状态)
+        // 第二个参数: API 钱包私钥(用于签名交易请求)
         HyperliquidClient client = HyperliquidClient.builder()
                 .testNetUrl()
-                .addPrivateKey(pk)
+                .addApiWallet(primaryWalletAddress, apiWalletPrivateKey)
                 .build();
+        
+        // 备选方案: 使用主私钥构建客户端(不推荐用于生产环境)
+        // String pk = System.getenv("HYPERLIQUID_PRIVATE_KEY");
+        // HyperliquidClient client = HyperliquidClient.builder()
+        //         .testNetUrl()
+        //         .addPrivateKey(pk)
+        //         .build();
 
         Info info = client.getInfo();
         L2Book book = info.l2Book("ETH");
