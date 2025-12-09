@@ -183,7 +183,7 @@ public class QuickStart {
         // 主私钥钱包: 直接使用主钱包私钥,拥有完全控制权,风险较高
         String primaryWalletAddress = "";  // 主钱包地址
         String apiWalletPrivateKey = "";   // API 钱包私钥
-        
+
         // 使用 API 钱包构建客户端(推荐)
         // 第一个参数: 主钱包地址(用于查询账户状态)
         // 第二个参数: API 钱包私钥(用于签名交易请求)
