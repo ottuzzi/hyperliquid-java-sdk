@@ -212,7 +212,7 @@ public class Demo {
         L2Book book = info.l2Book("ETH");
         System.out.println("Best bid: " + book.getLevels().get(0).get(0).getPx());
 
-        Exchange ex = client.getSingleExchange();
+        Exchange ex = client.getExchange();
         OrderRequest req = OrderRequest.Open.limit(Tif.GTC, "ETH", true, "0.001", "3500.0");
         try {
             Order order = ex.order(req);

@@ -29,7 +29,7 @@ public class ExampleLimitOpen {
                 .testNetUrl()
                 .addApiWallet(primaryWalletAddress, apiWalletPrivateKey)
                 .build();
-        
+
         // Alternative: Build client with main private key (Not recommended for production)
         // String pk = System.getenv("HYPERLIQUID_PRIVATE_KEY");
         // HyperliquidClient client = HyperliquidClient.builder()
@@ -37,8 +37,8 @@ public class ExampleLimitOpen {
         //         .addPrivateKey(pk)
         //         .build();
 
-        Exchange ex = client.getSingleExchange();
-        
+        Exchange ex = client.getExchange();
+
         // Open long position with limit order: Buy 0.01 ETH at 1800.0 (GTC - Good Till Cancel)
         OrderRequest req = OrderRequest.Open.limit(Tif.GTC, "ETH", true, "0.01", "1800.0");
         try {

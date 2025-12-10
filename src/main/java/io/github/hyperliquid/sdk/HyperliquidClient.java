@@ -77,8 +77,19 @@ public class HyperliquidClient {
 
     /**
      * 获取单个Exchange  , 如果有多个则返回第一个
-     **/
+     * 
+     * @deprecated 此方法已被弃用，请使用 {@link #getExchange()} 替代
+     * @return Exchange 实例
+     */
+    @Deprecated
     public Exchange getSingleExchange() {
+        return getExchange();
+    }
+
+    /**
+     * 获取单个Exchange  , 如果有多个则返回第一个
+     **/
+    public Exchange getExchange() {
         if (exchangesByAddress.isEmpty()) {
             throw new HypeError("No exchange instances available.");
         }
@@ -91,18 +102,28 @@ public class HyperliquidClient {
      * @param address 钱包地址（42位十六进制格式，0x开头）
      * @return 对应的 Exchange 实例
      * @throws HypeError 如果地址不存在，抛出异常并提示可用地址列表
+     * @deprecated 此方法已被弃用，请使用 {@link #getExchange(String)} 替代
      **/
+    @Deprecated
     public Exchange useExchange(String address) {
+        return getExchange(address);
+    }
+
+    /**
+     * 根据钱包地址获取 Exchange 实例
+     *
+     * @param address 钱包地址（42位十六进制格式，0x开头）
+     * @return 对应的 Exchange 实例
+     * @throws HypeError 如果地址不存在，抛出异常并提示可用地址列表
+     **/
+    public Exchange getExchange(String address) {
         if (address == null || address.trim().isEmpty()) {
             throw new HypeError("Wallet address cannot be null or empty.");
         }
         Exchange ex = exchangesByAddress.get(address);
         if (ex == null) {
             String availableAddresses = String.join(", ", exchangesByAddress.keySet());
-            throw new HypeError(String.format(
-                    "Wallet address '%s' not found. Available addresses: [%s]",
-                    address,
-                    availableAddresses.isEmpty() ? "none" : availableAddresses
+            throw new HypeError(String.format("Wallet address '%s' not found. Available addresses: [%s]", address, availableAddresses.isEmpty() ? "none" : availableAddresses
             ));
         }
         return ex;
@@ -143,7 +164,7 @@ public class HyperliquidClient {
      * @return 对应的 Exchange 实例
      * @throws HypeError 如果索引越界
      */
-    public Exchange useExchangeByIndex(int index) {
+    public Exchange getExchangeByIndex(int index) {
         List<String> addresses = listWallets();
         if (index < 0 || index >= addresses.size()) {
             throw new HypeError(String.format(

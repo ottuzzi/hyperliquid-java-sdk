@@ -33,7 +33,7 @@ public class ExampleBulkOrders {
                 .testNetUrl()
                 .addApiWallet(primaryWalletAddress, apiWalletPrivateKey)
                 .build();
-        
+
         // Alternative: Build client with main private key (Not recommended for production)
         // String pk = System.getenv("HYPERLIQUID_PRIVATE_KEY");
         // HyperliquidClient client = HyperliquidClient.builder()
@@ -41,7 +41,7 @@ public class ExampleBulkOrders {
         //         .addPrivateKey(pk)
         //         .build();
 
-        Exchange ex = client.getSingleExchange();
+        Exchange ex = client.getExchange();
 
         // Example 1: Bulk limit orders to open positions for multiple coins
         List<OrderRequest> openOrders = Arrays.asList(

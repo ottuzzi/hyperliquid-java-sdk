@@ -313,13 +313,11 @@ public class Info {
     public Integer getSzDecimals(String coinName) {
         // 通过 nameToAsset 获取资产 ID（会自动利用缓存）
         Integer assetId = nameToAsset(coinName);
-
         // 优先从精度缓存查询
         Integer szDecimals = assetToSzDecimalsCache.get(assetId);
         if (szDecimals != null) {
             return szDecimals;
         }
-
         // 缓存未命中，从 meta 加载
         Meta.Universe universe = getMetaUniverse(coinName);
         szDecimals = universe.getSzDecimals();
@@ -327,7 +325,6 @@ public class Info {
         if (szDecimals == null) {
             throw new HypeError("szDecimals not defined for coin: " + coinName);
         }
-
         // 更新缓存
         assetToSzDecimalsCache.put(assetId, szDecimals);
         return szDecimals;
@@ -526,7 +523,7 @@ public class Info {
         if (endTime < startTime) {
             throw new HypeError("End time cannot be earlier than start time");
         }
-        
+
         Map<String, Object> req = new LinkedHashMap<>();
         req.put("coin", coin);
         req.put("interval", interval.getCode());
@@ -577,12 +574,12 @@ public class Info {
         if (count > 5000) {
             throw new HypeError("count cannot exceed 5000 (API limit)");
         }
-        
+
         long endTime = System.currentTimeMillis();
         // 增加 2 个周期的缓冲时间，确保数据完整性
         long startTime = endTime - (interval.toMillis() * (count + 2));
         List<Candle> candles = candleSnapshot(coin, interval, startTime, endTime);
-        
+
         // 如果返回的数据多于请求数量，截取最后 count 根
         if (candles.size() > count) {
             return candles.subList(candles.size() - count, candles.size());
@@ -607,7 +604,7 @@ public class Info {
         if (days <= 0) {
             throw new HypeError("days must be greater than 0");
         }
-        
+
         long endTime = System.currentTimeMillis();
         long startTime = endTime - (days * 24 * 60 * 60 * 1000L);  // days * 毫秒数
         return candleSnapshot(coin, interval, startTime, endTime);
@@ -638,18 +635,18 @@ public class Info {
         if (day < 1 || day > 31) {
             throw new HypeError("Invalid day: " + day);
         }
-        
+
         // 构造 UTC 时区的起始和结束时间
         long startTime = java.time.LocalDate.of(year, month, day)
                 .atStartOfDay(java.time.ZoneOffset.UTC)
                 .toInstant()
                 .toEpochMilli();
-        
+
         long endTime = java.time.LocalDate.of(year, month, day)
                 .atTime(23, 59, 59, 999_999_999)
                 .toInstant(java.time.ZoneOffset.UTC)
                 .toEpochMilli();
-        
+
         return candleSnapshot(coin, interval, startTime, endTime);
     }
 
@@ -669,7 +666,7 @@ public class Info {
         // 查询当前周期和上一个周期，确保能获取到数据
         long startTime = endTime - (interval.toMillis() * 2);
         List<Candle> candles = candleSnapshot(coin, interval, startTime, endTime);
-        
+
         // 返回最后一根（当前正在生成的 K 线）
         return !candles.isEmpty() ? candles.getLast() : null;
     }

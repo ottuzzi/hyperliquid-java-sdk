@@ -29,7 +29,7 @@ public class ExampleMarketClose {
                 .testNetUrl()
                 .addApiWallet(primaryWalletAddress, apiWalletPrivateKey)
                 .build();
-        
+
         // Alternative: Build client with main private key (Not recommended for production)
         // String pk = System.getenv("HYPERLIQUID_PRIVATE_KEY");
         // HyperliquidClient client = HyperliquidClient.builder()
@@ -37,8 +37,8 @@ public class ExampleMarketClose {
         //         .addPrivateKey(pk)
         //         .build();
 
-        Exchange ex = client.getSingleExchange();
-        
+        Exchange ex = client.getExchange();
+
         // Close position at market: Close 0.01 ETH (using auto-generated Cloid for order tracking)
         OrderRequest req = OrderRequest.Close.market("ETH", "0.01", Cloid.auto());
         try {

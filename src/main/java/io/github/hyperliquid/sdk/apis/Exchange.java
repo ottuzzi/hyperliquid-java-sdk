@@ -119,6 +119,17 @@ public class Exchange {
         return JSONUtil.convertValue(postAction(actions), UpdateLeverage.class);
     }
 
+
+    /**
+     * 单笔下单（普通下单场景）
+     *
+     * @param req 下单请求
+     * @return 交易接口响应 JSON
+     */
+    public Order order(OrderRequest req) {
+        return order(req, null);
+    }
+
     /**
      * 单笔下单（支持 builder）。
      * <p>
@@ -131,7 +142,6 @@ public class Exchange {
         OrderRequest effective = prepareRequest(req);
         // 格式化订单数量精度
         formatOrderSize(effective);
-        marketOpenTransition(effective);
         // 格式化订单价格精度
         formatOrderPrice(effective);
         int assetId = ensureAssetId(effective.getCoin());
@@ -141,16 +151,6 @@ public class Exchange {
         Long expiresAfter = effective.getExpiresAfter() != null ? effective.getExpiresAfter() : 120_000L;
         JsonNode node = postAction(action, expiresAfter);
         return JSONUtil.convertValue(node, Order.class);
-    }
-
-    /**
-     * 单笔下单（普通下单场景）
-     *
-     * @param req 下单请求
-     * @return 交易接口响应 JSON
-     */
-    public Order order(OrderRequest req) {
-        return order(req, null);
     }
 
     /**
@@ -221,21 +221,23 @@ public class Exchange {
 
 
     /**
-     * 准备下单请求：推断市价平仓方向与数量。
-     *
-     * <p>
-     * 当检测为“市价平仓占位”（IOC + reduceOnly=true 且 limitPx 为空）时：
-     * - 若传入 isBuy 与 sz，则原样返回；
-     * - 否则根据当前仓位签名尺寸推断方向（szi&lt;0 → 买入/平空；szi&gt;0 → 卖出/平多），
-     * 并将数量设为传入 sz 或绝对仓位大小；
-     * - 返回一个规范化的市价平仓请求。
-     * </p>
-     *
-     * @param req 原始下单请求
-     * @return 规范化后的下单请求
-     * @throws HypeError 当无可平仓位时抛出
+     * 准备下单请求：
+     * 1.推断市价平仓方数量。
+     * 2.推断限价平仓方向。
+     * 3.推断条件单限价
      */
     private OrderRequest prepareRequest(OrderRequest req) {
+        //推断市价开仓价 带滑点
+        if (req.getLimitPx() == null &&
+                req.getOrderType() != null &&
+                req.getOrderType().getLimit() != null &&
+                req.getOrderType().getLimit().getTif() == Tif.IOC) {
+            String slip = req.getSlippage() != null ? req.getSlippage() : defaultSlippageByCoin.getOrDefault(req.getCoin(), defaultSlippage);
+            String slipPx = computeSlippagePrice(req.getCoin(), Boolean.TRUE.equals(req.getIsBuy()), slip);
+            req.setLimitPx(slipPx);
+            return req;
+        }
+        //市价平仓推断
         if (isClosePositionMarket(req)) {
             if (req.getIsBuy() != null && req.getSz() != null) {
                 return req;
@@ -248,6 +250,7 @@ public class Exchange {
             String sz = (req.getSz() != null && !req.getSz().isEmpty()) ? req.getSz() : String.valueOf(Math.abs(szi));
             return OrderRequest.Close.market(req.getCoin(), isBuy, sz, req.getCloid());
         }
+        //限价平仓推断
         if (isClosePositionLimit(req)) {
             double signedPosition = inferSignedPosition(req.getCoin());
             if (signedPosition == 0.0) {
@@ -256,6 +259,19 @@ public class Exchange {
             boolean isBuy = signedPosition < 0.0;
             //推断仓位方向 设置isBuy
             req.setIsBuy(isBuy);
+            return req;
+        }
+        //条件单推断
+        if (isTriggerOrder(req)) {
+            if (req.getLimitPx() == null) {
+                Map<String, String> mids = info.allMids();
+                String midStr = mids.get(req.getCoin());
+                if (midStr == null) {
+                    throw new HypeError("No mid for coin " + req.getCoin());
+                }
+                req.setLimitPx(midStr);
+            }
+            return req;
         }
         return req;
     }
@@ -291,6 +307,19 @@ public class Exchange {
                 && Boolean.TRUE.equals(req.getReduceOnly())
                 && req.getLimitPx() != null
                 && req.getIsBuy() == null;
+    }
+
+    /**
+     * 判定是否为“条件单”请求。
+     *
+     * @param req 下单请求
+     * @return 是则返回 true，否则 false
+     */
+    private boolean isTriggerOrder(OrderRequest req) {
+        return req != null
+                && req.getInstrumentType() == InstrumentType.PERP
+                && req.getOrderType() != null
+                && req.getOrderType().getTrigger() != null;
     }
 
     /**
@@ -1494,10 +1523,8 @@ public class Exchange {
      * @return 已启用返回 true，否则 false
      */
     private boolean isDexEnabled(JsonNode node) {
-        if (node == null)
-            return false;
-        if (node.has("enabled"))
-            return node.get("enabled").asBoolean(false);
+        if (node == null) return false;
+        if (node.has("enabled")) return node.get("enabled").asBoolean(false);
         if (node.has("data") && node.get("data").has("enabled"))
             return node.get("data").get("enabled").asBoolean(false);
         String s = node.toString().toLowerCase();
@@ -1528,12 +1555,6 @@ public class Exchange {
 
     /**
      * 市价开仓占位转换：为 IOC 市价单计算占位限价。
-     *
-     * <p>
-     * 当 limitPx 为空且 TIF=IOC 时：
-     * - 取 {@code req.slippage} 或默认滑点配置；
-     * - 使用 {@link #computeSlippagePrice(String, boolean, double)} 计算占位价并写回。
-     * </p>
      *
      * @param req 下单请求
      */
@@ -1689,7 +1710,8 @@ public class Exchange {
         if (szi == 0.0) {
             throw new HypeError("No position to close for coin " + coin);
         }
-        OrderRequest req = OrderRequest.Close.limit(tif, coin, String.valueOf(Math.abs(szi)), limitPx, cloid);
+        boolean isBuy = szi < 0.0;
+        OrderRequest req = OrderRequest.Close.limit(tif, coin, isBuy, String.valueOf(Math.abs(szi)), limitPx, cloid);
         return order(req);
     }
 

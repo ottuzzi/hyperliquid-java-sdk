@@ -30,7 +30,7 @@ public class ExampleCloseAll {
                 .testNetUrl()
                 .addApiWallet(primaryWalletAddress, apiWalletPrivateKey)
                 .build();
-        
+
         // Alternative: Build client with main private key (Not recommended for production)
         // String pk = System.getenv("HYPERLIQUID_PRIVATE_KEY");
         // HyperliquidClient client = HyperliquidClient.builder()
@@ -38,8 +38,8 @@ public class ExampleCloseAll {
         //         .addPrivateKey(pk)
         //         .build();
 
-        Exchange ex = client.getSingleExchange();
-        
+        Exchange ex = client.getExchange();
+
         // Example 1: Close entire ETH position at market (auto-infer direction and size)
         try {
             Order mkt = ex.closePositionMarket("ETH");

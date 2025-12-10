@@ -4,7 +4,6 @@ import static io.github.hyperliquid.sdk.model.order.TriggerOrderType.TpslType;
 
 /**
  * 下单请求结构（Java 侧语义化表示）。
- * <p>
  * 说明：
  * - 市价单在协议层以“限价 + IOC”表达，`limitPx` 可为空，价格由业务层根据中间价及滑点计算；
  * - 触发单通过 `orderType.trigger` 承载触发参数；
@@ -194,11 +193,6 @@ public class OrderRequest {
         return new OrderWithTpSlBuilder();
     }
 
-    /**
-     * 永续开仓
-     **/
-
-    // Getter and Setter methods
     public InstrumentType getInstrumentType() {
         return instrumentType;
     }
@@ -382,7 +376,6 @@ public class OrderRequest {
 
         /**
          * 创建突破开仓订单（价格向上突破时触发，市价执行，无 cloid）。
-         * <p>
          * 使用场景：做多突破策略，当价格突破关键阻力位时追涨买入。
          *
          * @param coin      币种名称
@@ -396,7 +389,6 @@ public class OrderRequest {
 
         /**
          * 创建突破开仓订单（价格向上突破时触发，市价执行）。
-         * <p>
          * 使用场景：做多突破策略，当价格突破关键阻力位时追涨买入。
          *
          * @param coin      币种名称
@@ -422,7 +414,6 @@ public class OrderRequest {
 
         /**
          * 创建突破开仓订单（价格向下跌破时触发，市价执行，无 cloid）。
-         * <p>
          * 使用场景：做空突破策略，当价格跌破关键支撑位时追空卖出。
          *
          * @param coin      币种名称
@@ -626,6 +617,7 @@ public class OrderRequest {
      * 静态内部类，用于快速创建平仓订单请求。
      */
     public static class Close {
+
         // ========================================
         // 市价平仓
         // ========================================
@@ -724,7 +716,7 @@ public class OrderRequest {
          * @return OrderRequest 实例
          */
         public static OrderRequest limit(String coin, String sz, String limitPx) {
-            return limit(Tif.GTC, coin, sz, limitPx, null);
+            return limit(Tif.GTC, coin, null, sz, limitPx, null);
         }
 
         /**
@@ -737,7 +729,7 @@ public class OrderRequest {
          * @return OrderRequest 实例
          */
         public static OrderRequest limit(String coin, String sz, String limitPx, Cloid cloid) {
-            return limit(Tif.GTC, coin, sz, limitPx, cloid);
+            return limit(Tif.GTC, coin, null, sz, limitPx, cloid);
         }
 
         /**
@@ -745,16 +737,17 @@ public class OrderRequest {
          *
          * @param tif     时间生效方式
          * @param coin    币种名称
+         * @param isBuy   是否买入
          * @param sz      数量（字符串）
          * @param limitPx 限价（字符串）
          * @param cloid   客户端订单 ID（可为 null）
          * @return OrderRequest 实例
          */
-        public static OrderRequest limit(Tif tif, String coin, String sz, String limitPx, Cloid cloid) {
+        public static OrderRequest limit(Tif tif, String coin, Boolean isBuy, String sz, String limitPx, Cloid cloid) {
             OrderRequest req = new OrderRequest();
             req.setInstrumentType(InstrumentType.PERP);
             req.setCoin(coin);
-            req.setIsBuy(null); // 将在 prepareRequest 中推断
+            req.setIsBuy(isBuy);
             req.setSz(sz);
             req.setLimitPx(limitPx);
             req.setReduceOnly(true);
@@ -772,7 +765,6 @@ public class OrderRequest {
 
         /**
          * 创建止盈平仓订单（价格向上突破时触发，市价执行，无 cloid）。
-         * <p>
          * 使用场景：多仓止盈，当价格达到目标位时自动平仓锁定利润。
          *
          * @param coin      币种名称
@@ -780,8 +772,8 @@ public class OrderRequest {
          * @param triggerPx 止盈触发价格（字符串）
          * @return OrderRequest 实例
          */
-        public static OrderRequest takeProfit(String coin, String sz, String triggerPx) {
-            return takeProfit(coin, sz, triggerPx, null);
+        public static OrderRequest takeProfit(String coin, Boolean isBuy, String sz, String triggerPx) {
+            return takeProfit(coin, isBuy, sz, triggerPx, null);
         }
 
         /**
@@ -795,11 +787,11 @@ public class OrderRequest {
          * @param cloid     客户端订单 ID（可为 null）
          * @return OrderRequest 实例
          */
-        public static OrderRequest takeProfit(String coin, String sz, String triggerPx, Cloid cloid) {
+        public static OrderRequest takeProfit(String coin, Boolean isBuy, String sz, String triggerPx, Cloid cloid) {
             OrderRequest req = new OrderRequest();
             req.setInstrumentType(InstrumentType.PERP);
             req.setCoin(coin);
-            req.setIsBuy(null); // 将在 prepareRequest 中推断
+            req.setIsBuy(isBuy);
             req.setSz(sz);
             req.setLimitPx(null);
             req.setReduceOnly(true);
@@ -812,7 +804,6 @@ public class OrderRequest {
 
         /**
          * 创建止损平仓订单（价格向下跌破时触发，市价执行，无 cloid）。
-         * <p>
          * 使用场景：多仓止损，当价格跌破止损位时自动平仓限制亏损。
          *
          * @param coin      币种名称
@@ -820,13 +811,12 @@ public class OrderRequest {
          * @param triggerPx 止损触发价格（字符串）
          * @return OrderRequest 实例
          */
-        public static OrderRequest stopLoss(String coin, String sz, String triggerPx) {
-            return stopLoss(coin, sz, triggerPx, null);
+        public static OrderRequest stopLoss(String coin, Boolean isBuy, String sz, String triggerPx) {
+            return stopLoss(coin, isBuy, sz, triggerPx, null);
         }
 
         /**
          * 创建止损平仓订单（价格向下跌破时触发，市价执行）。
-         * <p>
          * 使用场景：多仓止损，当价格跌破止损位时自动平仓限制亏损。
          *
          * @param coin      币种名称
@@ -835,11 +825,11 @@ public class OrderRequest {
          * @param cloid     客户端订单 ID（可为 null）
          * @return OrderRequest 实例
          */
-        public static OrderRequest stopLoss(String coin, String sz, String triggerPx, Cloid cloid) {
+        public static OrderRequest stopLoss(String coin, Boolean isBuy, String sz, String triggerPx, Cloid cloid) {
             OrderRequest req = new OrderRequest();
             req.setInstrumentType(InstrumentType.PERP);
             req.setCoin(coin);
-            req.setIsBuy(null); // 将在 prepareRequest 中推断
+            req.setIsBuy(isBuy);
             req.setSz(sz);
             req.setLimitPx(null);
             req.setReduceOnly(true);

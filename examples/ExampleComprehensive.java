@@ -27,7 +27,7 @@ import java.util.List;
  * </p>
  */
 public class ExampleComprehensive {
-    
+
     public static void main(String[] args) throws JsonProcessingException {
         // ==================== 1. Client Initialization ====================
         // Recommended: Use API Wallet for better security
@@ -45,7 +45,7 @@ public class ExampleComprehensive {
                 .addApiWallet(primaryWalletAddress, apiWalletPrivateKey)
                 .timeout(15)   // Set timeout to 15 seconds
                 .build();
-        
+
         // Alternative: Build client with main private key (Not recommended for production)
         // String pk = System.getenv("HYPERLIQUID_PRIVATE_KEY");
         // HyperliquidClient client = HyperliquidClient.builder()
@@ -55,7 +55,7 @@ public class ExampleComprehensive {
         //         .build();
 
         Info info = client.getInfo();
-        Exchange exchange = client.getSingleExchange();
+        Exchange exchange = client.getExchange();
         String address = client.getSingleAddress();
 
         System.out.println("=== Hyperliquid Java SDK Comprehensive Example ===");
@@ -63,7 +63,7 @@ public class ExampleComprehensive {
 
         // ==================== 2. Query Market Data ====================
         System.out.println("--- 2. Market Data Query ---");
-        
+
         // Query ETH order book
         L2Book book = info.l2Book("ETH");
         if (book != null && book.getLevels() != null && !book.getLevels().isEmpty()) {
