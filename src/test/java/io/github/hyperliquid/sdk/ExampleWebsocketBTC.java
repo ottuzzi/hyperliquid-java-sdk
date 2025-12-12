@@ -1,10 +1,10 @@
 package io.github.hyperliquid.sdk;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import io.github.hyperliquid.sdk.apis.Info;
 import io.github.hyperliquid.sdk.model.info.Candle;
 import io.github.hyperliquid.sdk.model.info.CandleInterval;
+import io.github.hyperliquid.sdk.model.subscription.OrderUpdatesSubscription;
 import io.github.hyperliquid.sdk.model.subscription.TradesSubscription;
 import io.github.hyperliquid.sdk.utils.JSONUtil;
 import io.github.hyperliquid.sdk.websocket.WebsocketManager;
@@ -59,8 +59,9 @@ public class ExampleWebsocketBTC {
                 .testNetUrl()
                 //.addPrivateKey(TESTNET_PRIVATE_KEY)
                 .build();
-        JsonNode sub = JSONUtil.convertValue(java.util.Map.of("type", "orderUpdates", "user", "0x...."), JsonNode.class);
-        client.getInfo().subscribe(sub, System.out::println);
+        //JsonNode sub = JSONUtil.convertValue(java.util.Map.of("type", "orderUpdates", "user", "0x...."), JsonNode.class);
+        OrderUpdatesSubscription orderUpdatesSubscription = OrderUpdatesSubscription.of("0x....");
+        client.getInfo().subscribe(orderUpdatesSubscription, System.out::println);
 
         /*  获取所有订阅
         *
@@ -73,6 +74,12 @@ public class ExampleWebsocketBTC {
             for (WebsocketManager.ActiveSubscription activeSubscription : v) {
                 System.out.println("订阅内容: " + activeSubscription.getSubscription());
             }
+        });
+
+        //方式二 订阅内容: {"type":"orderUpdates","user":"0x...."}
+        List<WebsocketManager.ActiveSubscription> orderUpdates = client.getInfo().getWsManager().getSubscriptionsByIdentifier("orderUpdates");
+        orderUpdates.forEach(activeSubscription -> {
+            System.out.println("订阅内容: " + activeSubscription.getSubscription());
         });
 
         //等待
