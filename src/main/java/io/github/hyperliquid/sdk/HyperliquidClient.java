@@ -17,9 +17,9 @@ import java.math.BigInteger;
 import java.time.Duration;
 import java.util.*;
 
-
 /**
- * HyperliquidClient unified management client, responsible for order placement, cancellation, transfers, and other L1/L2 operations.
+ * HyperliquidClient unified management client, responsible for order placement,
+ * cancellation, transfers, and other L1/L2 operations.
  * Supports management and switching of multiple wallet credentials.
  */
 public class HyperliquidClient {
@@ -40,7 +40,6 @@ public class HyperliquidClient {
      * API wallet list
      **/
     private final List<ApiWallet> apiWallets;
-
 
     public HyperliquidClient(Info info, Map<String, Exchange> exchangesByAddress, List<ApiWallet> apiWallets) {
         this.info = info;
@@ -77,17 +76,6 @@ public class HyperliquidClient {
 
     /**
      * Get single Exchange, if there are multiple, return the first one
-     * 
-     * @deprecated This method is deprecated, please use {@link #getExchange()} instead
-     * @return Exchange instance
-     */
-    @Deprecated
-    public Exchange getSingleExchange() {
-        return getExchange();
-    }
-
-    /**
-     * Get single Exchange, if there are multiple, return the first one
      **/
     public Exchange getExchange() {
         if (exchangesByAddress.isEmpty()) {
@@ -99,22 +87,11 @@ public class HyperliquidClient {
     /**
      * Get Exchange instance by wallet address
      *
-     * @param address Wallet address (42-character hexadecimal format, starting with 0x)
+     * @param address Wallet address (42-character hexadecimal format, starting with
+     *                0x)
      * @return Corresponding Exchange instance
-     * @throws HypeError If address does not exist, throw exception and prompt available address list
-     * @deprecated This method is deprecated, please use {@link #getExchange(String)} instead
-     **/
-    @Deprecated
-    public Exchange useExchange(String address) {
-        return getExchange(address);
-    }
-
-    /**
-     * Get Exchange instance by wallet address
-     *
-     * @param address Wallet address (42-character hexadecimal format, starting with 0x)
-     * @return Corresponding Exchange instance
-     * @throws HypeError If address does not exist, throw exception and prompt available address list
+     * @throws HypeError If address does not exist, throw exception and prompt
+     *                   available address list
      **/
     public Exchange getExchange(String address) {
         if (address == null || address.trim().isEmpty()) {
@@ -123,8 +100,8 @@ public class HyperliquidClient {
         Exchange ex = exchangesByAddress.get(address);
         if (ex == null) {
             String availableAddresses = String.join(", ", exchangesByAddress.keySet());
-            throw new HypeError(String.format("Wallet address '%s' not found. Available addresses: [%s]", address, availableAddresses.isEmpty() ? "none" : availableAddresses
-            ));
+            throw new HypeError(String.format("Wallet address '%s' not found. Available addresses: [%s]", address,
+                    availableAddresses.isEmpty() ? "none" : availableAddresses));
         }
         return ex;
     }
@@ -170,8 +147,7 @@ public class HyperliquidClient {
             throw new HypeError(String.format(
                     "Wallet index %d out of bounds. Valid range: [0, %d]",
                     index,
-                    addresses.size() - 1
-            ));
+                    addresses.size() - 1));
         }
         return exchangesByAddress.get(addresses.get(index));
     }
@@ -230,7 +206,8 @@ public class HyperliquidClient {
 
         /**
          * Whether to automatically warm up cache (default: enabled)
-         * When enabled, build() will automatically load commonly used data (meta, spotMeta, coin mapping) into cache,
+         * When enabled, build() will automatically load commonly used data (meta,
+         * spotMeta, coin mapping) into cache,
          * avoiding delays during first API calls and improving user experience.
          */
         private boolean autoWarmUpCache = true;
@@ -292,7 +269,8 @@ public class HyperliquidClient {
          * <p>
          * By default, build() will automatically warm up cache to improve performance.
          * Only disable in the following scenarios:
-         * 1. Application startup time requirements are extremely strict (millisecond level)
+         * 1. Application startup time requirements are extremely strict (millisecond
+         * level)
          * 2. Unstable network environment, don't want build() to block
          * 3. Used for testing scenarios, need precise control over cache behavior
          * </p>
@@ -304,15 +282,14 @@ public class HyperliquidClient {
             return this;
         }
 
-
         private OkHttpClient getOkHttpClient() {
-            return okHttpClient != null ? okHttpClient : new OkHttpClient.Builder()
-                    .connectTimeout(Duration.ofSeconds(timeout))
-                    .readTimeout(Duration.ofSeconds(timeout))
-                    .writeTimeout(Duration.ofSeconds(timeout))
-                    .build();
+            return okHttpClient != null ? okHttpClient
+                    : new OkHttpClient.Builder()
+                            .connectTimeout(Duration.ofSeconds(timeout))
+                            .readTimeout(Duration.ofSeconds(timeout))
+                            .writeTimeout(Duration.ofSeconds(timeout))
+                            .build();
         }
-
 
         public HyperliquidClient build() {
             OkHttpClient httpClient = getOkHttpClient();
@@ -324,10 +301,12 @@ public class HyperliquidClient {
                     validatePrivateKey(apiWallet.getApiWalletPrivateKey());
                     Credentials credentials = Credentials.create(apiWallet.getApiWalletPrivateKey());
                     apiWallet.setCredentials(credentials);
-                    if (apiWallet.getPrimaryWalletAddress() == null || apiWallet.getPrimaryWalletAddress().trim().isEmpty()) {
+                    if (apiWallet.getPrimaryWalletAddress() == null
+                            || apiWallet.getPrimaryWalletAddress().trim().isEmpty()) {
                         apiWallet.setPrimaryWalletAddress(credentials.getAddress());
                     }
-                    exchangesByAddress.put(apiWallet.getPrimaryWalletAddress(), new Exchange(hypeHttpClient, apiWallet, info));
+                    exchangesByAddress.put(apiWallet.getPrimaryWalletAddress(),
+                            new Exchange(hypeHttpClient, apiWallet, info));
                 }
             }
 
@@ -336,17 +315,17 @@ public class HyperliquidClient {
                 try {
                     info.warmUpCache();
                 } catch (Exception e) {
-                    log.warn("[HyperliquidClient] Warning: Cache warm-up failed, but client is still usable. First API calls may be slower. Error: {}", e.getMessage());
+                    log.warn(
+                            "[HyperliquidClient] Warning: Cache warm-up failed, but client is still usable. First API calls may be slower. Error: {}",
+                            e.getMessage());
                 }
             }
 
             return new HyperliquidClient(
                     info,
                     Collections.unmodifiableMap(exchangesByAddress),
-                    Collections.unmodifiableList(new ArrayList<>(this.apiWallets))
-            );
+                    Collections.unmodifiableList(new ArrayList<>(this.apiWallets)));
         }
-
 
         /**
          * Private key validation logic:

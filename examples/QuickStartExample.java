@@ -35,7 +35,7 @@ public class QuickStartExample {
                 .build();
 
         Info info = client.getInfo();
-        Exchange exchange = client.getSingleExchange(); // Get the exchange instance for the added wallet
+        Exchange exchange = client.getExchange(); // Get the exchange instance for the added wallet
 
         // 3. Query market data: Get the L2 book for "ETH"
         try {

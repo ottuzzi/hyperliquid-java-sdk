@@ -66,57 +66,64 @@ public class QuickStart {
     private static final Logger LOGGER = LoggerFactory.getLogger(QuickStart.class);
 
     public static void main(String[] args) {
-        // 1. 为安全起见，从环境变量中读取私钥
-        String privateKey = System.getenv("HYPERLIQUID_TESTNET_PRIVATE_KEY");
-        if (privateKey == null || privateKey.isEmpty()) {
-            LOGGER.error("错误: 环境变量 HYPERLIQUID_TESTNET_PRIVATE_KEY 未设置。");
-            LOGGER.error("请设置为您的测试网私钥: export HYPERLIQUID_TESTNET_PRIVATE_KEY=\"0x...\"");
-            return;
-        }
+        // **1. 推荐：使用 API 钱包以获得更好的安全性**
+        // **API 钱包: 由主钱包授权的子钱包，权限有限，不暴露主私钥**
+        // **主私钥: 直接使用主钱包私钥，拥有完全控制权，风险较高**
+        String primaryWalletAddress = System.getenv("PRIMARY_WALLET_ADDRESS");  // **主钱包地址**
+        String apiWalletPrivateKey = System.getenv("API_WALLET_PRIVATE_KEY");   // **API 钱包私钥**
+        if (primaryWalletAddress == null || apiWalletPrivateKey == null)
+            throw new IllegalStateException("**请设置 PRIMARY_WALLET_ADDRESS 和 API_WALLET_PRIVATE_KEY 环境变量**");
 
-        // 2. 构建测试网客户端
+        // **2. 使用 API 钱包构建客户端 (推荐)**
         HyperliquidClient client = HyperliquidClient.builder()
-                .testNetUrl() // 使用测试网环境
-                .addPrivateKey(privateKey) // 添加您的钱包
-                .build();
+                .testNetUrl() // **使用测试网环境**
+                .addApiWallet(primaryWalletAddress, apiWalletPrivateKey) // **添加您的 API 钱包**
+                .build(); // **构建客户端实例**
 
-        Info info = client.getInfo();
-        Exchange exchange = client.getSingleExchange(); // 获取已添加钱包的交易实例
+        // **备选方案: 使用主私钥构建客户端 (生产环境不推荐)**
+        // String pk = System.getenv("HYPERLIQUID_PRIVATE_KEY");
+        // HyperliquidClient client = HyperliquidClient.builder()
+        //         .testNetUrl() // **使用测试网环境**
+        //         .addPrivateKey(pk) // **添加您的主私钥**
+        //         .build(); // **构建客户端实例**
+
+        Info info = client.getInfo(); // **获取 Info 客户端实例**
+        Exchange exchange = client.getExchange(); // **获取已添加钱包的交易实例**
 
         // 3. 查询市场数据: 获取 "ETH" 的 L2 订单簿
         try {
-            LOGGER.info("正在查询 ETH 的 L2 订单簿...");
-            L2Book l2Book = info.l2Book("ETH");
+            LOGGER.info("正在查询 ETH 的 L2 订单簿..."); // **记录日志：开始查询**
+            L2Book l2Book = info.l2Book("ETH"); // **调用 Info API 查询 ETH 的 L2 订单簿**
             // 打印前3档的买卖盘
-            LOGGER.info("成功获取 {} 的 L2 订单簿:", l2Book.getCoin());
-            l2Book.getLevels().get(0).subList(0, 3).forEach(level ->
-                    LOGGER.info("  卖盘 - 价格: {}, 数量: {}", level.getPx(), level.getSz())
+            LOGGER.info("成功获取 {} 的 L2 订单簿:", l2Book.getCoin()); // **记录日志：查询成功**
+            l2Book.getLevels().get(0).subList(0, 3).forEach(level -> // **遍历卖盘前3档**
+                    LOGGER.info("  卖盘 - 价格: {}, 数量: {}", level.getPx(), level.getSz()) // **打印卖盘价格和数量**
             );
-            l2Book.getLevels().get(1).subList(0, 3).forEach(level ->
-                    LOGGER.info("  买盘 - 价格: {}, 数量: {}", level.getPx(), level.getSz())
+            l2Book.getLevels().get(1).subList(0, 3).forEach(level -> // **遍历买盘前3档**
+                    LOGGER.info("  买盘 - 价格: {}, 数量: {}", level.getPx(), level.getSz()) // **打印买盘价格和数量**
             );
-        } catch (HypeError e) {
-            LOGGER.error("查询 L2 订单簿失败。代码: {}, 消息: {}", e.getCode(), e.getMessage());
+        } catch (HypeError e) { // **捕获 HypeError 异常**
+            LOGGER.error("查询 L2 订单簿失败。代码: {}, 消息: {}", e.getCode(), e.getMessage()); // **记录错误日志**
         }
 
         // 4. 执行交易: 创建一个 ETH 的限价买单
         try {
-            LOGGER.info("正在下一个 ETH 的限价买单...");
+            LOGGER.info("正在下一个 ETH 的限价买单..."); // **记录日志：开始下单**
             // 创建一个限价买单，以 $1500 的价格购买 0.01 ETH
             // 此订单如果不能立即成交将会被自动取消 (IOC)
-            OrderRequest orderRequest = OrderRequest.builder()
-                    .perp("ETH")
-                    .buy("0.01")
-                    .limitPrice("1500")
-                    .orderType(Tif.IOC) // 立即成交或取消 (Immediate Or Cancel)
-                    .build();
+            OrderRequest orderRequest = OrderRequest.builder() // **使用 OrderRequest 构建器**
+                    .perp("ETH") // **指定交易品种为 ETH 永续合约**
+                    .buy("0.01") // **买入方向，数量为 0.01**
+                    .limitPrice("1500") // **设置限价为 $1500**
+                    .orderType(Tif.IOC) // **设置订单类型为 IOC (立即成交或取消)**
+                    .build(); // **构建订单请求对象**
 
-            JsonNode response = exchange.order(orderRequest);
-            LOGGER.info("下单成功。响应: {}", JSONUtil.toJson(response));
+            JsonNode response = exchange.order(orderRequest); // **调用 Exchange API 下单**
+            LOGGER.info("下单成功。响应: {}", JSONUtil.toJson(response)); // **记录日志：下单成功，并打印响应**
 
-        } catch (HypeError e) {
+        } catch (HypeError e) { // **捕获 HypeError 异常**
             // 处理特定错误的示例，例如：保证金不足
-            LOGGER.error("下单失败。代码: {}, 消息: {}", e.getCode(), e.getMessage(), e);
+            LOGGER.error("下单失败。代码: {}, 消息: {}", e.getCode(), e.getMessage(), e); // **记录错误日志**
         }
     }
 }
@@ -157,8 +164,8 @@ HyperliquidClient client = HyperliquidClient.builder()
                 .build();
 
 // 为不同钱包获取交易实例
-Exchange exchange1 = client.useExchange("0x您的主钱包地址1");
-Exchange exchange2 = client.useExchange("0x您的主钱包地址2");
+Exchange exchange1 = client.getExchange("0x您的主钱包地址1");
+Exchange exchange2 = client.getExchange("0x您的主钱包地址2");
 ```
 
 ### 查询数据 (`Info` API)

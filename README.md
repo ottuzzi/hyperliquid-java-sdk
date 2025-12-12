@@ -69,22 +69,29 @@ public class QuickStart {
     private static final Logger LOGGER = LoggerFactory.getLogger(QuickStart.class);
 
     public static void main(String[] args) {
-        // 1. Read private key from environment variable for security
-        String privateKey = System.getenv("HYPERLIQUID_TESTNET_PRIVATE_KEY");
-        if (privateKey == null || privateKey.isEmpty()) {
-            LOGGER.error("Error: HYPERLIQUID_TESTNET_PRIVATE_KEY environment variable not set.");
-            LOGGER.error("Please set it to your testnet private key: export HYPERLIQUID_TESTNET_PRIVATE_KEY="0x..."");
-            return;
-        }
+        //1. Recommended: Use API Wallet for better security
+        // API Wallet: Sub-wallet authorized by main wallet, with limited permissions, main private key not exposed
+        // Main Private Key: Direct use of main wallet private key, full control, higher risk
+        String primaryWalletAddress = System.getenv("PRIMARY_WALLET_ADDRESS");  // Primary wallet address
+        String apiWalletPrivateKey = System.getenv("API_WALLET_PRIVATE_KEY");   // API wallet private key
+        if (primaryWalletAddress == null || apiWalletPrivateKey == null)
+            throw new IllegalStateException("Set PRIMARY_WALLET_ADDRESS and API_WALLET_PRIVATE_KEY");
 
-        // 2. Build the client for Testnet
+        //2. Build client with API Wallet (Recommended)
         HyperliquidClient client = HyperliquidClient.builder()
-                .testNetUrl() // Use the testnet environment
-                .addPrivateKey(privateKey) // Add your wallet
+                .testNetUrl()
+                .addApiWallet(primaryWalletAddress, apiWalletPrivateKey)
                 .build();
 
+        // Alternative: Build client with main private key (Not recommended for production)
+        // String pk = System.getenv("HYPERLIQUID_PRIVATE_KEY");
+        // HyperliquidClient client = HyperliquidClient.builder()
+        //         .testNetUrl()
+        //         .addPrivateKey(pk)
+        //         .build();
+
         Info info = client.getInfo();
-        Exchange exchange = client.getSingleExchange(); // Get the exchange instance for the added wallet
+        Exchange exchange = client.getExchange(); // Get the exchange instance for the added wallet
 
         // 3. Query Market Data: Get the L2 Order Book for "ETH"
         try {
@@ -160,8 +167,8 @@ HyperliquidClient client = HyperliquidClient.builder()
                 .build();
 
 // Accessing exchange instances for different wallets
-Exchange exchange1 = client.useExchange("0xYourMainAddress1");
-Exchange exchange2 = client.useExchange("0xYourMainAddress2");
+Exchange exchange1 = client.getExchange("0xYourMainAddress1");
+Exchange exchange2 = client.getExchange("0xYourMainAddress2");
 ```
 
 ### Querying Data (`Info` API)
