@@ -69,10 +69,8 @@ public class QuickStart {
         // **1. 推荐：使用 API 钱包以获得更好的安全性**
         // **API 钱包: 由主钱包授权的子钱包，权限有限，不暴露主私钥**
         // **主私钥: 直接使用主钱包私钥，拥有完全控制权，风险较高**
-        String primaryWalletAddress = System.getenv("PRIMARY_WALLET_ADDRESS");  // **主钱包地址**
-        String apiWalletPrivateKey = System.getenv("API_WALLET_PRIVATE_KEY");   // **API 钱包私钥**
-        if (primaryWalletAddress == null || apiWalletPrivateKey == null)
-            throw new IllegalStateException("**请设置 PRIMARY_WALLET_ADDRESS 和 API_WALLET_PRIVATE_KEY 环境变量**");
+        String primaryWalletAddress = "";  // **主钱包地址**
+        String apiWalletPrivateKey = "";   // **API 钱包私钥**
 
         // **2. 使用 API 钱包构建客户端 (推荐)**
         HyperliquidClient client = HyperliquidClient.builder()
@@ -115,15 +113,15 @@ public class QuickStart {
                     .perp("ETH") // **指定交易品种为 ETH 永续合约**
                     .buy("0.01") // **买入方向，数量为 0.01**
                     .limitPrice("1500") // **设置限价为 $1500**
-                    .orderType(Tif.IOC) // **设置订单类型为 IOC (立即成交或取消)**
+                    .gtc() // **设置订单类型为 Good Till Cancel (GTC)，订单在未成交前一直有效**
                     .build(); // **构建订单请求对象**
 
-            JsonNode response = exchange.order(orderRequest); // **调用 Exchange API 下单**
-            LOGGER.info("下单成功。响应: {}", JSONUtil.toJson(response)); // **记录日志：下单成功，并打印响应**
+            Order order = exchange.order(orderRequest); // **调用 Exchange API 下单**
+            LOGGER.info("下单成功。响应: {}", JSONUtil.writeValueAsString(order)); // **记录日志：下单成功，并打印响应**
 
-        } catch (HypeError e) { // **捕获 HypeError 异常**
+        } catch (HypeError | JsonProcessingException e) { // **捕获 HypeError 异常**
             // 处理特定错误的示例，例如：保证金不足
-            LOGGER.error("下单失败。代码: {}, 消息: {}", e.getCode(), e.getMessage(), e); // **记录错误日志**
+            LOGGER.error("下单失败。消息: {}", e.getMessage(), e);
         }
     }
 }
@@ -138,30 +136,30 @@ public class QuickStart {
 ```java
 // 完整配置示例
 HyperliquidClient client = HyperliquidClient.builder()
-                // 选择网络 (或提供自定义 URL)
-                .testNetUrl() // 或 .mainNetUrl(), .baseUrl("http://...")
-
-                // --- 钱包管理 ---
-                // 方案一: 添加单个主私钥
-                .addPrivateKey("0x您的主私钥")
-
-                // 方案二: 添加多个 API 钱包 (为安全起见，推荐此方式)
-                // API 钱包是您主钱包授权的子钱包
-                .addApiWallet("0x您的主钱包地址1", "0x您的API私钥1")
-                .addApiWallet("0x您的主钱包地址2", "0x您的API私钥2")
-
-                // --- 性能优化 ---
-                // 启动时预先将市场元数据加载到缓存中
-                .autoWarmUpCache(true)
-
-                // --- 网络设置 ---
-                // 为底层的 OkHttpClient 设置自定义超时 (单位：毫秒)
-                .connectTimeout(15_000)
-                .readTimeout(15_000)
-                .writeTimeout(15_000)
-
-                // 构建不可变的客户端实例
-                .build();
+        // 选择网络 (或提供自定义 URL)
+        .testNetUrl() // 或 .mainNetUrl(), .baseUrl("http://...")
+        
+        // --- 钱包管理 ---
+        // 方案一: 添加单个主私钥
+        .addPrivateKey("0x您的主私钥")
+        
+        // 方案二: 添加多个 API 钱包 (为安全起见，推荐此方式)
+        // API 钱包是您主钱包授权的子钱包
+        .addApiWallet("0x您的主钱包地址1", "0x您的API私钥1")
+        .addApiWallet("0x您的主钱包地址2", "0x您的API私钥2")
+        
+        // --- 性能优化 ---
+        // 启动时预先将市场元数据加载到缓存中
+        .autoWarmUpCache(true)
+        
+        // --- 网络设置 ---
+        // 为底层的 OkHttpClient 设置自定义超时 (单位：毫秒)
+        .connectTimeout(15_000)
+        .readTimeout(15_000)
+        .writeTimeout(15_000)
+        
+        // 构建不可变的客户端实例
+        .build();
 
 // 为不同钱包获取交易实例
 Exchange exchange1 = client.getExchange("0x您的主钱包地址1");
@@ -176,20 +174,14 @@ Exchange exchange2 = client.getExchange("0x您的主钱包地址2");
 
 ```java
 UserState userState = info.userState("0x您的地址");
-LOGGER.
-
-info("总保证金使用量: {}",userState.getMarginSummary().
-
-getTotalMarginUsed());
+LOGGER.info("总保证金使用量: {}", userState.getMarginSummary().getTotalMarginUsed());
 ```
 
 **获取未结订单:**
 
 ```java
 List<Order> openOrders = info.openOrders("0x您的地址");
-LOGGER.
-
-info("用户有 {} 个未结订单。",openOrders.size());
+LOGGER.info("用户有 {} 个未结订单。", openOrders.size());
 ```
 
 **获取市场元数据:**
@@ -197,24 +189,10 @@ info("用户有 {} 个未结订单。",openOrders.size());
 ```java
 Meta meta = info.meta();
 // 查找特定资产的详细信息
-meta.
-
-getUniverse().
-
-stream()
-    .
-
-filter(asset ->"ETH".
-
-equals(asset.getName()))
-        .
-
-findFirst()
-    .
-
-ifPresent(ethAsset ->LOGGER.
-
-info("ETH 的最大杠杆: {}",ethAsset.getMaxLeverage()));
+meta.getUniverse().stream()
+    .filter(asset -> "ETH".equals(asset.getName()))
+    .findFirst()
+    .ifPresent(ethAsset -> LOGGER.info("ETH 的最大杠杆: {}", ethAsset.getMaxLeverage()));
 ```
 
 ### 交易 (`Exchange` API)
@@ -227,12 +205,12 @@ info("ETH 的最大杠杆: {}",ethAsset.getMaxLeverage()));
 ```java
 // 止损市价单
 OrderRequest slOrder = OrderRequest.builder()
-                .perp("ETH")
-                .sell("0.01") // 平多仓的方向
-                .triggerPrice("2900", false) // 当价格跌破 2900 时触发
-                .market() // 触发后作为市价单执行
-                .reduceOnly(true) // 确保它只减少仓位
-                .build();
+        .perp("ETH")
+        .sell("0.01") // 平多仓的方向
+        .triggerPrice("2900", false) // 当价格跌破 2900 时触发
+        .market() // 触发后作为市价单执行
+        .reduceOnly(true) // 确保它只减少仓位
+        .build();
 
 // 止盈限价单
 OrderRequest tpOrder = OrderRequest.builder()
@@ -274,23 +252,17 @@ JsonNode leverageResponse = exchange.updateLeverage("ETH", 20, false); // 20倍�
 Subscription userEventsSub = new Subscription(SubscriptionType.USER_EVENTS, "0x您的地址");
 
 // 使用消息处理器和错误处理器进行订阅
-info.
-
-subscribe(userEventsSub,
-          // OnMessage 回调
-    (message) ->{
-        LOGGER.
-
-info("收到 WebSocket 消息: {}",message);
-// 在此添加您处理消息的逻辑
+info.subscribe(userEventsSub,
+    // OnMessage 回调
+    (message) -> {
+        LOGGER.info("收到 WebSocket 消息: {}", message);
+        // 在此添加您处理消息的逻辑
     },
-            // OnError 回调
-            (error)->{
-        LOGGER.
-
-error("WebSocket 错误: ",error);
+    // OnError 回调
+    (error) -> {
+        LOGGER.error("WebSocket 错误: ", error);
     }
-            );
+);
 
 // 取消订阅
 // info.unsubscribe(userEventsSub);
@@ -301,25 +273,15 @@ error("WebSocket 错误: ",error);
 所有 SDK 特定的错误都作为 `HypeError` 抛出。这包括来自服务器的 API 错误和客户端的验证错误。
 
 ```java
-try{
-        // 执行某些交易操作
-        }catch(HypeError e){
-        LOGGER.
-
-error("发生错误。代码: [{}], 消息: [{}]",e.getCode(),e.
-
-getMessage());
-        // 您还可以访问原始的 JSON 错误响应（如果可用）
-        if(e.
-
-getJsonNode() !=null){
-        LOGGER.
-
-error("原始错误响应: {}",e.getJsonNode().
-
-toString());
-        }
-        }
+try {
+    // 执行某些交易操作
+} catch (HypeError e) {
+    LOGGER.error("发生错误。代码: [{}], 消息: [{}]", e.getCode(), e.getMessage());
+    // 您还可以访问原始的 JSON 错误响应（如果可用）
+    if (e.getJsonNode() != null) {
+        LOGGER.error("原始错误响应: {}", e.getJsonNode().toString());
+    }
+}
 ```
 
 ## 🛠️ 安装部署
@@ -328,7 +290,6 @@ toString());
 - **Maven**:
 
 ```xml
-
 <dependency>
     <groupId>io.github.heiye115</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
