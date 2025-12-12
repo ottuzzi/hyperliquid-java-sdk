@@ -8,14 +8,11 @@
 [![Stars](https://img.shields.io/github/stars/heiye115/hyperliquid-java-sdk?style=social)](https://github.com/heiye115/hyperliquid-java-sdk)
 [![Issues](https://img.shields.io/github/issues/heiye115/hyperliquid-java-sdk)](https://github.com/heiye115/hyperliquid-java-sdk/issues)
 
-A professional, type-safe, and feature-rich Java SDK for the Hyperliquid L1, designed for high-performance trading and
-data streaming.
+A professional, type-safe, and feature-rich Java SDK for the Hyperliquid L1, designed for high-performance trading and data streaming.
 
 ## 🎯 Overview
 
-This SDK provides a comprehensive, pure Java solution for interacting with the Hyperliquid decentralized exchange. It
-empowers developers to build sophisticated trading bots, data analysis tools, and platform integrations with ease and
-confidence.
+This SDK provides a comprehensive, pure Java solution for interacting with the Hyperliquid decentralized exchange. It empowers developers to build sophisticated trading bots, data analysis tools, and platform integrations with ease and confidence.
 
 ### ✨ Feature Highlights
 
@@ -69,7 +66,7 @@ public class QuickStart {
     private static final Logger LOGGER = LoggerFactory.getLogger(QuickStart.class);
 
     public static void main(String[] args) {
-        //1. Recommended: Use API Wallet for better security
+        // 1. Recommended: Use API Wallet for better security
         // API Wallet: Sub-wallet authorized by main wallet, with limited permissions, main private key not exposed
         String primaryWalletAddress = "";  // Primary wallet address
         String apiWalletPrivateKey = "";   // API wallet private key
@@ -96,7 +93,7 @@ public class QuickStart {
                     LOGGER.info("  Bid - Price: {}, Size: {}", level.getPx(), level.getSz())
             );
         } catch (HypeError e) {
-            LOGGER.error("Failed to query L2 book.  Message: {}",  e.getMessage());
+            LOGGER.error("Failed to query L2 book.  Message: {}", e.getMessage());
         }
 
         // 4. Execute a trade: Create a limit buy order for ETH
@@ -131,30 +128,30 @@ The `HyperliquidClient.builder()` provides a fluent API for configuration.
 ```java
 // Full configuration example
 HyperliquidClient client = HyperliquidClient.builder()
-                // Select network (or provide a custom URL)
-                .testNetUrl() // .mainNetUrl() or .baseUrl("http://...")
+        // Select network (or provide a custom URL)
+        .testNetUrl() // .mainNetUrl() or .baseUrl("http://...")
 
-                // --- Wallet Management ---
-                // Option 1: Add a single main private key
-                .addPrivateKey("0xYourMainPrivateKey")
+        // --- Wallet Management ---
+        // Option 1: Add a single main private key
+        .addPrivateKey("0xYourMainPrivateKey")
 
-                // Option 2: Add multiple API Wallets (recommended for security)
-                // An API wallet is a sub-wallet authorized by your main wallet.
-                .addApiWallet("0xYourMainAddress1", "0xYourApiPrivateKey1")
-                .addApiWallet("0xYourMainAddress2", "0xYourApiPrivateKey2")
+        // Option 2: Add multiple API Wallets (recommended for security)
+        // An API wallet is a sub-wallet authorized by your main wallet.
+        .addApiWallet("0xYourMainAddress1", "0xYourApiPrivateKey1")
+        .addApiWallet("0xYourMainAddress2", "0xYourApiPrivateKey2")
 
-                // --- Performance ---
-                // Pre-fetch market metadata into cache upon startup
-                .autoWarmUpCache(true)
+        // --- Performance ---
+        // Pre-fetch market metadata into cache upon startup
+        .autoWarmUpCache(true)
 
-                // --- Network ---
-                // Set custom timeouts for the underlying OkHttpClient (in milliseconds)
-                .connectTimeout(15_000)
-                .readTimeout(15_000)
-                .writeTimeout(15_000)
+        // --- Network ---
+        // Set custom timeouts for the underlying OkHttpClient (in milliseconds)
+        .connectTimeout(15_000)
+        .readTimeout(15_000)
+        .writeTimeout(15_000)
 
-                // Build the immutable client instance
-                .build();
+        // Build the immutable client instance
+        .build();
 
 // Accessing exchange instances for different wallets
 Exchange exchange1 = client.getExchange("0xYourMainAddress1");
@@ -169,20 +166,14 @@ The `Info` API provides access to all public market data and private user data.
 
 ```java
 UserState userState = info.userState("0xYourAddress");
-LOGGER.
-
-info("Total margin usage: {}",userState.getMarginSummary().
-
-getTotalMarginUsed());
+LOGGER.info("Total margin usage: {}", userState.getMarginSummary().getTotalMarginUsed());
 ```
 
 **Get Open Orders:**
 
 ```java
 List<Order> openOrders = info.openOrders("0xYourAddress");
-LOGGER.
-
-info("User has {} open orders.",openOrders.size());
+LOGGER.info("User has {} open orders.", openOrders.size());
 ```
 
 **Get Market Metadata:**
@@ -190,24 +181,10 @@ info("User has {} open orders.",openOrders.size());
 ```java
 Meta meta = info.meta();
 // Find details for a specific asset
-meta.
-
-getUniverse().
-
-stream()
-    .
-
-filter(asset ->"ETH".
-
-equals(asset.getName()))
-        .
-
-findFirst()
-    .
-
-ifPresent(ethAsset ->LOGGER.
-
-info("Max leverage for ETH: {}",ethAsset.getMaxLeverage()));
+meta.getUniverse().stream()
+    .filter(asset -> "ETH".equals(asset.getName()))
+    .findFirst()
+    .ifPresent(ethAsset -> LOGGER.info("Max leverage for ETH: {}", ethAsset.getMaxLeverage()));
 ```
 
 ### Trading (`Exchange` API)
@@ -220,12 +197,12 @@ The builder provides a type-safe way to construct complex orders.
 ```java
 // Stop-Loss Market Order
 OrderRequest slOrder = OrderRequest.builder()
-                .perp("ETH")
-                .sell("0.01") // Direction to close a long position
-                .triggerPrice("2900", false) // Trigger when price drops below 2900
-                .market() // Execute as a market order when triggered
-                .reduceOnly(true) // Ensures it only reduces a position
-                .build();
+        .perp("ETH")
+        .sell("0.01") // Direction to close a long position
+        .triggerPrice("2900", false) // Trigger when price drops below 2900
+        .market() // Execute as a market order when triggered
+        .reduceOnly(true) // Ensures it only reduces a position
+        .build();
 
 // Take-Profit Limit Order
 OrderRequest tpOrder = OrderRequest.builder()
@@ -267,23 +244,17 @@ Subscribe to real-time data streams. The `WebsocketManager` handles connection s
 Subscription userEventsSub = new Subscription(SubscriptionType.USER_EVENTS, "0xYourAddress");
 
 // Subscribe with a message handler and an error handler
-info.
-
-subscribe(userEventsSub,
-          // OnMessage callback
-    (message) ->{
-        LOGGER.
-
-info("Received WebSocket message: {}",message);
-// Add your logic to process the message
+info.subscribe(userEventsSub,
+    // OnMessage callback
+    (message) -> {
+        LOGGER.info("Received WebSocket message: {}", message);
+        // Add your logic to process the message
     },
-            // OnError callback
-            (error)->{
-        LOGGER.
-
-error("WebSocket Error: ",error);
+    // OnError callback
+    (error) -> {
+        LOGGER.error("WebSocket Error: ", error);
     }
-            );
+);
 
 // To unsubscribe
 // info.unsubscribe(userEventsSub);
@@ -291,29 +262,18 @@ error("WebSocket Error: ",error);
 
 ### Error Handling (`HypeError`)
 
-All SDK-specific errors are thrown as `HypeError`. This includes API errors from the server and client-side validation
-errors.
+All SDK-specific errors are thrown as `HypeError`. This includes API errors from the server and client-side validation errors.
 
 ```java
-try{
-        // Some exchange operation
-        }catch(HypeError e){
-        LOGGER.
-
-error("An error occurred. Code: [{}], Message: [{}]",e.getCode(),e.
-
-getMessage());
-        // You can also access the original JSON error response if available
-        if(e.
-
-getJsonNode() !=null){
-        LOGGER.
-
-error("Raw error response: {}",e.getJsonNode().
-
-toString());
-        }
-        }
+try {
+    // Some exchange operation
+} catch (HypeError e) {
+    LOGGER.error("An error occurred. Code: [{}], Message: [{}]", e.getCode(), e.getMessage());
+    // You can also access the original JSON error response if available
+    if (e.getJsonNode() != null) {
+        LOGGER.error("Raw error response: {}", e.getJsonNode().toString());
+    }
+}
 ```
 
 ## 🛠️ Installation
@@ -322,7 +282,6 @@ toString());
 - **Maven**:
 
 ```xml
-
 <dependency>
     <groupId>io.github.heiye115</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
@@ -338,8 +297,7 @@ implementation 'io.github.heiye115:hyperliquid-java-sdk:0.2.4' // Replace with t
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) to get started. You can help by
-reporting issues, suggesting features, or submitting pull requests.
+Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTING.md) to get started. You can help by reporting issues, suggesting features, or submitting pull requests.
 
 ## 📄 License
 
