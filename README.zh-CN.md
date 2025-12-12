@@ -115,15 +115,15 @@ public class QuickStart {
                     .perp("ETH") // **指定交易品种为 ETH 永续合约**
                     .buy("0.01") // **买入方向，数量为 0.01**
                     .limitPrice("1500") // **设置限价为 $1500**
-                    .orderType(Tif.IOC) // **设置订单类型为 IOC (立即成交或取消)**
+                    .gtc() // **设置订单类型为 Good Till Cancel (GTC)，订单在未成交前一直有效**
                     .build(); // **构建订单请求对象**
 
-            JsonNode response = exchange.order(orderRequest); // **调用 Exchange API 下单**
-            LOGGER.info("下单成功。响应: {}", JSONUtil.toJson(response)); // **记录日志：下单成功，并打印响应**
+            Order order = exchange.order(orderRequest); // **调用 Exchange API 下单**
+            LOGGER.info("下单成功。响应: {}", JSONUtil.writeValueAsString(order)); // **记录日志：下单成功，并打印响应**
 
-        } catch (HypeError e) { // **捕获 HypeError 异常**
+        } catch (HypeError | JsonProcessingException e) { // **捕获 HypeError 异常**
             // 处理特定错误的示例，例如：保证金不足
-            LOGGER.error("下单失败。代码: {}, 消息: {}", e.getCode(), e.getMessage(), e); // **记录错误日志**
+            LOGGER.error("下单失败。消息: {}",  e.getMessage(), e);
         }
     }
 }

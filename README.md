@@ -71,34 +71,24 @@ public class QuickStart {
     public static void main(String[] args) {
         //1. Recommended: Use API Wallet for better security
         // API Wallet: Sub-wallet authorized by main wallet, with limited permissions, main private key not exposed
-        // Main Private Key: Direct use of main wallet private key, full control, higher risk
-        String primaryWalletAddress = System.getenv("PRIMARY_WALLET_ADDRESS");  // Primary wallet address
-        String apiWalletPrivateKey = System.getenv("API_WALLET_PRIVATE_KEY");   // API wallet private key
-        if (primaryWalletAddress == null || apiWalletPrivateKey == null)
-            throw new IllegalStateException("Set PRIMARY_WALLET_ADDRESS and API_WALLET_PRIVATE_KEY");
+        String primaryWalletAddress = "";  // Primary wallet address
+        String apiWalletPrivateKey = "";   // API wallet private key
 
-        //2. Build client with API Wallet (Recommended)
+        // 2. Build the client for the testnet
         HyperliquidClient client = HyperliquidClient.builder()
-                .testNetUrl()
+                .testNetUrl() // Use the testnet environment
                 .addApiWallet(primaryWalletAddress, apiWalletPrivateKey)
                 .build();
-
-        // Alternative: Build client with main private key (Not recommended for production)
-        // String pk = System.getenv("HYPERLIQUID_PRIVATE_KEY");
-        // HyperliquidClient client = HyperliquidClient.builder()
-        //         .testNetUrl()
-        //         .addPrivateKey(pk)
-        //         .build();
 
         Info info = client.getInfo();
         Exchange exchange = client.getExchange(); // Get the exchange instance for the added wallet
 
-        // 3. Query Market Data: Get the L2 Order Book for "ETH"
+        // 3. Query market data: Get the L2 book for "ETH"
         try {
             LOGGER.info("Querying L2 book for ETH...");
             L2Book l2Book = info.l2Book("ETH");
-            // Print top 3 bids and asks
-            LOGGER.info("Successfully fetched L2 book for {}:", l2Book.getCoin());
+            // Print the top 3 levels of bids and asks
+            LOGGER.info("Successfully retrieved L2 book for {}:", l2Book.getCoin());
             l2Book.getLevels().get(0).subList(0, 3).forEach(level ->
                     LOGGER.info("  Ask - Price: {}, Size: {}", level.getPx(), level.getSz())
             );
@@ -106,27 +96,27 @@ public class QuickStart {
                     LOGGER.info("  Bid - Price: {}, Size: {}", level.getPx(), level.getSz())
             );
         } catch (HypeError e) {
-            LOGGER.error("Failed to query L2 book. Code: {}, Message: {}", e.getCode(), e.getMessage());
+            LOGGER.error("Failed to query L2 book.  Message: {}",  e.getMessage());
         }
 
-        // 4. Place a Trade: Create a limit buy order for ETH
+        // 4. Execute a trade: Create a limit buy order for ETH
         try {
             LOGGER.info("Placing a limit buy order for ETH...");
             // Create a limit buy order for 0.01 ETH at a price of $1500
-            // This order will be automatically cancelled if not filled immediately (IOC)
+            // This order will be canceled if not filled immediately (IOC)
             OrderRequest orderRequest = OrderRequest.builder()
-                    .perp("ETH")
-                    .buy("0.01")
-                    .limitPrice("1500")
-                    .orderType(Tif.IOC) // Immediate Or Cancel
+                    .perp("ETH") // Perpetual contract for ETH
+                    .buy("0.01") // Buying 0.01 ETH
+                    .limitPrice("1500") // Limit price for the order
+                    .gtc() // Good Till Cancel (GTC) order
                     .build();
 
-            JsonNode response = exchange.order(orderRequest);
-            LOGGER.info("Successfully placed order. Response: {}", JSONUtil.toJson(response));
+            Order order = exchange.order(orderRequest);
+            LOGGER.info("Order placed successfully. Response: {}", JSONUtil.writeValueAsString(order));
 
-        } catch (HypeError e) {
+        } catch (HypeError | JsonProcessingException e) {
             // Example of handling a specific error, e.g., insufficient margin
-            LOGGER.error("Failed to place order. Code: {}, Message: {}", e.getCode(), e.getMessage(), e);
+            LOGGER.error("Order placement failed. Message: {}",  e.getMessage(), e);
         }
     }
 }
