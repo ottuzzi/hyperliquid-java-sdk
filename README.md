@@ -159,14 +159,14 @@ bound to a specific wallet's credentials, with the `Signing` module handling per
 <dependency>
     <groupId>io.github.heiye115</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
-    <version>0.2.3</version>
+    <version>0.2.4</version>
 </dependency>
 ```
 
 - Gradle (Groovy):
 
 ```gradle
-implementation 'io.github.heiye115:hyperliquid-java-sdk:0.2.3'
+implementation 'io.github.heiye115:hyperliquid-java-sdk:0.2.4'
 ```
 
 ## Quick Start

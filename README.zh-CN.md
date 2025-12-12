@@ -150,14 +150,14 @@ ping/pong 心跳检测。连接断开时触发指数退避重试，同时监控�
 <dependency>
     <groupId>io.github.heiye115</groupId>
     <artifactId>hyperliquid-java-sdk</artifactId>
-    <version>0.2.3</version>
+    <version>0.2.4</version>
 </dependency>
 ```
 
 - Gradle（Groovy）：
 
 ```gradle
-implementation 'io.github.heiye115:hyperliquid-java-sdk:0.2.3'
+implementation 'io.github.heiye115:hyperliquid-java-sdk:0.2.4'
 ```
 
 ## 5分钟快速开始
