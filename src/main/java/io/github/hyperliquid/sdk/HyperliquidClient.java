@@ -310,7 +310,7 @@ public class HyperliquidClient {
                 }
             }
 
-            // 自动缓存预热（提升首次调用性能）
+            // Automatic cache warming (improves first-call performance)
             if (autoWarmUpCache) {
                 try {
                     info.warmUpCache();

@@ -52,13 +52,13 @@ public final class Signing {
      * @throws IllegalArgumentException Thrown when rounding error exceeds threshold
      */
     public static String floatToWire(double value) {
-        // 使用字符串格式化为 8 位小数，模拟 Python 的 f"{x:.8f}"
+        // Format string to 8 decimal places, simulating Python's f"{x:.8f}"
         String rounded = String.format(java.util.Locale.US, "%.8f", value);
         double roundedDouble = Double.parseDouble(rounded);
         if (Math.abs(roundedDouble - value) >= 1e-12) {
             throw new IllegalArgumentException("floatToWire causes rounding: " + value);
         }
-        // 使用 BigDecimal 规范化，去除尾随 0 与科学计数法
+        // Normalize using BigDecimal, removing trailing zeros and scientific notation
         BigDecimal normalized = new BigDecimal(rounded).stripTrailingZeros();
         String s = normalized.toPlainString();
         if ("-0".equals(s)) {
@@ -108,7 +108,7 @@ public final class Signing {
      */
     public static long floatToInt(double value, int power) {
         double withDecimals = value * Math.pow(10, power);
-        double rounded = Math.rint(withDecimals); // 最接近偶数的舍入，与 Python round 行为接近
+        double rounded = Math.rint(withDecimals); // Rounding to nearest even, similar to Python's round behavior
         if (Math.abs(rounded - withDecimals) >= 1e-3) {
             throw new IllegalArgumentException("floatToInt causes rounding: " + value);
         }
@@ -143,7 +143,7 @@ public final class Signing {
         if (orderType.getTrigger() != null) {
             Map<String, Object> trigObj = new LinkedHashMap<>();
             trigObj.put("isMarket", orderType.getTrigger().isMarket());
-            // 重要：triggerPx 也必须通过 floatToWire 转换
+            // Important: triggerPx must also be converted via floatToWire
             String triggerPx = orderType.getTrigger().getTriggerPx();
             if (triggerPx != null && !triggerPx.isEmpty()) {
                 trigObj.put("triggerPx", floatToWire(Double.parseDouble(triggerPx)));
@@ -165,8 +165,8 @@ public final class Signing {
      * @return OrderWire
      */
     public static OrderWire orderRequestToOrderWire(int coinId, OrderRequest req) {
-        // 重要：字符串必须通过 floatToWire 转换，确保签名格式与协议一致
-        // floatToWire 会去除尾随零、避免科学计数法，符合 Hyperliquid 协议要求
+        // Important: Strings must be converted via floatToWire to ensure signature format consistency with protocol
+        // floatToWire removes trailing zeros and avoids scientific notation, complying with Hyperliquid protocol requirements
         String szStr = req.getSz() != null ? floatToWire(Double.parseDouble(req.getSz())) : null;
         String pxStr = req.getLimitPx() != null && !req.getLimitPx().isEmpty() 
                 ? floatToWire(Double.parseDouble(req.getLimitPx())) : null;
@@ -186,23 +186,23 @@ public final class Signing {
      * @return 32-byte hash
      */
     public static byte[] actionHash(Object action, long nonce, String vaultAddress, Long expiresAfter) {
-        // 完全对齐 Python 的 action_hash 序列化与拼接规则：
-        // 1) 对 action 进行 MessagePack Map 编码（保持插入顺序）；
-        // 2) 直接追加 nonce 的 8 字节大端原始字节；
-        // 3) vaultAddress：null -> 追加单字节 0x00；非 null -> 追加 0x01 后紧接 20 字节地址；
-        // 4) expiresAfter：仅当非 null 时，追加单字节 0x00 + 8 字节大端原始字节；
+        // Fully aligned with Python's action_hash serialization and concatenation rules:
+        // 1) MessagePack Map encoding of action (preserving insertion order);
+        // 2) Directly append 8-byte big-endian raw bytes of nonce;
+        // 3) vaultAddress: null -> append single byte 0x00; non-null -> append 0x01 followed by 20-byte address;
+        // 4) expiresAfter: only when non-null, append single byte 0x00 + 8-byte big-endian raw bytes;
         try {
             byte[] actionMsgpack = packAsMsgpack(action);
 
             java.io.ByteArrayOutputStream baos = new java.io.ByteArrayOutputStream(actionMsgpack.length + 64);
-            // 写入 msgpack 编码的 action
+            // Write msgpack-encoded action
             baos.write(actionMsgpack);
 
-            // 追加 nonce 8 字节（大端）
+            // Append nonce 8 bytes (big-endian)
             byte[] nonceBytes = java.nio.ByteBuffer.allocate(8).putLong(nonce).array();
             baos.write(nonceBytes);
 
-            // 追加 vaultAddress 标记及地址
+            // Append vaultAddress flag and address
             if (vaultAddress == null) {
                 baos.write(new byte[]{0x00});
             } else {
@@ -249,7 +249,7 @@ public final class Signing {
                 Map<Object, Object> map = (Map<Object, Object>) obj;
                 packer.packMapHeader(map.size());
                 for (Map.Entry<Object, Object> e : map.entrySet()) {
-                    // 键按字符串编码
+                    // Key encoded as string
                     packer.packString(String.valueOf(e.getKey()));
                     writeMsgpack(packer, e.getValue());
                 }
@@ -288,10 +288,10 @@ public final class Signing {
                 return;
             }
 
-            // 其它类型（如自定义 POJO）统一转 Map 或 String
+            // Other types (e.g., custom POJOs) uniformly converted to Map or String
             case OrderWire ow -> {
                 Map<String, Object> m = new LinkedHashMap<>();
-                // 键顺序严格对齐 Python：a, b, p, s, r, t, (c 最后)
+                // Key order strictly aligned with Python: a, b, p, s, r, t, (c last)
                 m.put("a", ow.coin);
                 m.put("b", ow.isBuy);
                 if (ow.limitPx != null)
@@ -308,7 +308,7 @@ public final class Signing {
             default -> {
             }
         }
-        // 回退为字符串表示
+        // Fallback to string representation
         packer.packString(String.valueOf(obj));
     }
 
@@ -347,7 +347,7 @@ public final class Signing {
             return full;
         }
 
-        // 兼容模式：>20 截取末尾 20 字节；<20 左侧补零
+        // Compatibility mode: >20 bytes take last 20 bytes; <20 bytes pad with zeros on the left
         if (full.length > 20) {
             return Arrays.copyOfRange(full, full.length - 20, full.length);
         }
@@ -367,7 +367,7 @@ public final class Signing {
      * @throws HypeError Thrown when serialization or signing process encounters exceptions (wraps underlying exception information)
      */
     public static Map<String, Object> signTypedData(Credentials credentials, String typedDataJson) {
-        // 使用标准 EIP-712 结构化数据编码与签名（与 Python eth_account.encode_typed_data 一致）。
+        // Use standard EIP-712 structured data encoding and signing (consistent with Python eth_account.encode_typed_data).
         try {
             org.web3j.crypto.StructuredDataEncoder encoder = new org.web3j.crypto.StructuredDataEncoder(typedDataJson);
             byte[] digest = encoder.hashStructuredData();
@@ -393,7 +393,7 @@ public final class Signing {
     public static Map<String, Object> constructPhantomAgent(byte[] hash, boolean isMainnet) {
         Map<String, Object> agent = new LinkedHashMap<>();
         agent.put("source", isMainnet ? "a" : "b");
-        // bytes32 以 0x 前缀十六进制字符串表达，兼容 web3j StructuredDataEncoder
+        // bytes32 expressed as 0x-prefixed hexadecimal string, compatible with web3j StructuredDataEncoder
         agent.put("connectionId", Numeric.toHexString(hash));
         return agent;
     }
@@ -461,7 +461,7 @@ public final class Signing {
      */
     public static String userSignedPayloadJson(String primaryType, List<Map<String, Object>> payloadTypes,
                                                Map<String, Object> action) {
-        // 将 signatureChainId 的 16 进制字符串解析为整型链 ID
+        // Parse the hexadecimal string of signatureChainId to integer chain ID
         Object sigChainIdObj = action.get("signatureChainId");
         if (sigChainIdObj == null) {
             throw new HypeError("signatureChainId missing in user-signed action");
@@ -543,16 +543,16 @@ public final class Signing {
             byte[] r = Numeric.hexStringToByteArray(rHex);
             byte[] s = Numeric.hexStringToByteArray(sHex);
             byte vByte = (byte) vInt;
-            // 纯 EIP-712 非前缀恢复：直接基于 digest 与 r/s/v 进行 ecrecover，避免任何额外哈希或前缀。
-            // 注意：web3j 的 signedMessageToKey 可能会对输入进行哈希或与前缀约定耦合，这里使用更底层的
-            // recoverFromSignature。
+            // Pure EIP-712 non-prefixed recovery: directly perform ecrecover based on digest and r/s/v, avoiding any additional hashing or prefixes.
+            // Note: web3j's signedMessageToKey may hash the input or couple with prefix conventions, here we use a lower-level
+            // recoverFromSignature.
             int recId;
             if (vInt == 27 || vInt == 28) {
                 recId = vInt - 27;
             } else if (vInt == 0 || vInt == 1) {
                 recId = vInt;
             } else if (vInt >= 35) {
-                // 兼容 EIP-155 风格 v 值（尽管 EIP-712 通常不携带 chainId），仅用于健壮性处理
+                // Compatible with EIP-155-style v values (although EIP-712 typically doesn't carry chainId), only for robustness handling
                 recId = (vInt - 35) % 2;
             } else {
                 throw new HypeError("Unsupported v value for recovery: " + vInt);
@@ -610,7 +610,7 @@ public final class Signing {
      */
     private static java.math.BigInteger recoverPublicKeyFromSignature(int recId, java.math.BigInteger r,
                                                                       java.math.BigInteger s, byte[] digest) {
-        // 使用 BouncyCastle 曲线参数
+        // Using BouncyCastle curve parameters
         org.bouncycastle.asn1.x9.X9ECParameters x9 = org.bouncycastle.crypto.ec.CustomNamedCurves
                 .getByName("secp256k1");
         org.bouncycastle.crypto.params.ECDomainParameters curve = new org.bouncycastle.crypto.params.ECDomainParameters(
@@ -620,7 +620,7 @@ public final class Signing {
         java.math.BigInteger i = java.math.BigInteger.valueOf(recId / 2);
         java.math.BigInteger x = r.add(i.multiply(n));
 
-        // 根据 recId 的奇偶确定压缩点的奇偶性
+        // Determine the parity of compressed point based on recId parity
         boolean yBit = (recId % 2) == 1;
         org.bouncycastle.math.ec.ECPoint R = decompressKey(x, yBit, curve.getCurve());
         if (R == null || !R.multiply(n).isInfinity()) {
@@ -635,7 +635,7 @@ public final class Signing {
 
         org.bouncycastle.math.ec.ECPoint q = org.bouncycastle.math.ec.ECAlgorithms.sumOfTwoMultiplies(
                 curve.getG(), eInvRInv, R, srInv);
-        byte[] pubKeyEncoded = q.getEncoded(false); // 65 字节，首字节为 0x04
+        byte[] pubKeyEncoded = q.getEncoded(false); // 65 bytes, first byte is 0x04
         byte[] pubKeyNoPrefix = java.util.Arrays.copyOfRange(pubKeyEncoded, 1, pubKeyEncoded.length);
         return new java.math.BigInteger(1, pubKeyNoPrefix);
     }
@@ -697,9 +697,9 @@ public final class Signing {
     }
 
     /**
-     * 将多个 OrderWire 转换为 L1 动作对象，用于签名与发送。
+     * Convert multiple OrderWires to L1 action object for signing and sending.
      * <p>
-     * 生成的结构形如：
+     * The generated structure looks like:
      * {
      * "type": "order",
      * "orders": [
@@ -709,8 +709,8 @@ public final class Signing {
      * ]
      * }
      *
-     * @param orders 订单 wire 列表
-     * @return Map 动作对象 {"type": "order", "orders": [...]}
+     * @param orders Order wire list
+     * @return Map action object {"type": "order", "orders": [...]}
      */
     public static Map<String, Object> orderWiresToOrderAction(List<OrderWire> orders) {
         Map<String, Object> action = new LinkedHashMap<>();
@@ -720,7 +720,7 @@ public final class Signing {
         List<Map<String, Object>> wires = new ArrayList<>();
         for (OrderWire o : orders) {
             Map<String, Object> w = new LinkedHashMap<>();
-            // 键顺序严格对齐 Python：a, b, p, s, r, t, (c 最后)
+            // Key order strictly aligned with Python: a, b, p, s, r, t, (c last)
             w.put("a", o.coin);
             w.put("b", o.isBuy);
             if (o.limitPx != null) {
@@ -737,7 +737,7 @@ public final class Signing {
             wires.add(w);
         }
         action.put("orders", wires);
-        // 与 Python 一致，默认分组为 "na"（置于 orders 之后）
+        // Consistent with Python, default grouping is "na" (placed after orders)
         action.put("grouping", "na");
         return action;
     }
@@ -782,28 +782,28 @@ public final class Signing {
             long nonce,
             Long expiresAfter
     ) {
-        // 1. 提取 payload
+        // 1. Extract payload
         @SuppressWarnings("unchecked")
         Map<String, Object> payload = (Map<String, Object>) multiSigAction.get("payload");
         if (payload == null) {
             throw new IllegalArgumentException("multiSigAction must contain 'payload'");
         }
 
-        // 2. 提取 inner action
+        // 2. Extract inner action
         @SuppressWarnings("unchecked")
         Map<String, Object> innerAction = (Map<String, Object>) payload.get("action");
         if (innerAction == null) {
             throw new IllegalArgumentException("payload must contain 'action'");
         }
 
-        // 3. 计算 inner action 的哈希（与 L1 action 一致）
+        // 3. Calculate hash of inner action (consistent with L1 action)
         byte[] innerActionHash = actionHash(innerAction, nonce, vaultAddress, expiresAfter);
 
-        // 4. 构造 multiSigActionHash：将 innerActionHash 放入 payload
+        // 4. Construct multiSigActionHash: put innerActionHash into payload
         Map<String, Object> enrichedPayload = new LinkedHashMap<>(payload);
         enrichedPayload.put("multiSigActionHash", "0x" + Numeric.toHexStringNoPrefix(innerActionHash));
 
-        // 5. 构造 EIP-712 TypedData
+        // 5. Construct EIP-712 TypedData
         String chainId = isMainnet ? "0x66eee" : "0x66eef";
         Map<String, Object> domain = new LinkedHashMap<>();
         domain.put("name", "Exchange");
@@ -811,7 +811,7 @@ public final class Signing {
         domain.put("chainId", chainId);
         domain.put("verifyingContract", "0x0000000000000000000000000000000000000000");
 
-        // MultiSig EIP-712 类型
+        // MultiSig EIP-712 types
         Map<String, Object> multiSigType = new LinkedHashMap<>();
         multiSigType.put("name", "multiSigUser");
         multiSigType.put("type", "address");
@@ -845,7 +845,7 @@ public final class Signing {
         typedData.put("primaryType", "HyperliquidTransaction:MultiSig");
         typedData.put("message", enrichedPayload);
 
-        // 6. EIP-712 签名（转换为 JSON 字符串）
+        // 6. EIP-712 signing (convert to JSON string)
         try {
             String typedDataJson = JSONUtil.writeValueAsString(typedData);
             return signTypedData(wallet, typedDataJson);

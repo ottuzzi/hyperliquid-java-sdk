@@ -56,7 +56,7 @@ public class HypeHttpClient {
                     .build();
 
             try (Response response = client.newCall(request).execute()) {
-                // 统一处理响应体，避免重复读取
+                // Unified response body handling to avoid duplicate reads
                 String responseBody = response.body() != null ? response.body().string() : "{}";
 
                 if (!response.isSuccessful()) {
