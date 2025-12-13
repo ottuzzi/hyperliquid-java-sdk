@@ -299,7 +299,7 @@ Contributions are welcome! Please read our [Contributing Guidelines](CONTRIBUTIN
 
 This project is licensed under the **Apache 2.0 License**. See the [LICENSE](LICENSE) file for details.
 
-## Contact
+## 📞 Contact
 
 Contact the author via:
 
