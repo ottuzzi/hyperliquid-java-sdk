@@ -2,56 +2,97 @@ package io.github.hyperliquid.sdk.model.info;
 
 import java.util.List;
 
-/** Order status return wrapper */
+/**
+ * Order status return wrapper
+ */
 public class OrderStatus {
 
-    /** Top-level status (e.g., "ok"/"error") */
+    /**
+     * Top-level status (e.g., "ok"/"error")
+     */
     private String status;
 
-    /** Order details and status timestamp */
+    /**
+     * Order details and status timestamp
+     */
     private Order order;
 
     public static class Order {
-        /** Order details */
+        /**
+         * Order details
+         */
         private OrderDetail order;
-        /** Status update timestamp (milliseconds) */
+        /**
+         * Status update timestamp (milliseconds)
+         */
         private Long statusTimestamp;
 
         public static class OrderDetail {
-            /** Currency name */
+            /**
+             * Currency name
+             */
             private String coin;
-            /** Direction (A/B or Buy/Sell) */
+            /**
+             * Direction (A/B or Buy/Sell)
+             */
             private String side;
-            /** Limit price (string) */
+            /**
+             * Limit price (string)
+             */
             private String limitPx;
-            /** Order quantity (string) */
+            /**
+             * Order quantity (string)
+             */
             private String sz;
-            /** Order ID */
+            /**
+             * Order ID
+             */
             private Long oid;
-            /** Creation timestamp (milliseconds) */
+            /**
+             * Creation timestamp (milliseconds)
+             */
             private Long timestamp;
-            /** Trigger condition description */
+            /**
+             * Trigger condition description
+             */
             private String triggerCondition;
-            /** Whether it is a trigger order */
+            /**
+             * Whether it is a trigger order
+             */
             private Boolean isTrigger;
-            /** Trigger price (string) */
+            /**
+             * Trigger price (string)
+             */
             private String triggerPx;
-            /** Child order ID list (if split/sliced) */
-            private List<String> children;
-            /** Whether it is a position take-profit/stop-loss */
+            /**
+             * Child order ID list (if split/sliced)
+             */
+            private List<OrderDetail> children;
+            /**
+             * Whether it is a position take-profit/stop-loss
+             */
             private Boolean isPositionTpsl;
-            /** Whether to reduce position only */
+            /**
+             * Whether to reduce position only
+             */
             private Boolean reduceOnly;
-            /** Order type description */
+            /**
+             * Order type description
+             */
             private String orderType;
-            /** Original order quantity (string) */
+            /**
+             * Original order quantity (string)
+             */
             private String origSz;
-            /** TIF strategy (Gtc/Alo/Ioc) */
+            /**
+             * TIF strategy (Gtc/Alo/Ioc)
+             */
             private String tif;
-            /** Client order ID */
+            /**
+             * Client order ID
+             */
             private String cloid;
 
-            // Getter and Setter methods
             public String getCoin() {
                 return coin;
             }
@@ -108,12 +149,12 @@ public class OrderStatus {
                 this.triggerCondition = triggerCondition;
             }
 
-            public Boolean getIsTrigger() {
+            public Boolean getTrigger() {
                 return isTrigger;
             }
 
-            public void setIsTrigger(Boolean isTrigger) {
-                this.isTrigger = isTrigger;
+            public void setTrigger(Boolean trigger) {
+                isTrigger = trigger;
             }
 
             public String getTriggerPx() {
@@ -124,20 +165,20 @@ public class OrderStatus {
                 this.triggerPx = triggerPx;
             }
 
-            public List<String> getChildren() {
+            public List<OrderDetail> getChildren() {
                 return children;
             }
 
-            public void setChildren(List<String> children) {
+            public void setChildren(List<OrderDetail> children) {
                 this.children = children;
             }
 
-            public Boolean getIsPositionTpsl() {
+            public Boolean getPositionTpsl() {
                 return isPositionTpsl;
             }
 
-            public void setIsPositionTpsl(Boolean isPositionTpsl) {
-                this.isPositionTpsl = isPositionTpsl;
+            public void setPositionTpsl(Boolean positionTpsl) {
+                isPositionTpsl = positionTpsl;
             }
 
             public Boolean getReduceOnly() {
@@ -181,7 +222,6 @@ public class OrderStatus {
             }
         }
 
-        // Getter and Setter methods
         public OrderDetail getOrder() {
             return order;
         }
@@ -199,7 +239,6 @@ public class OrderStatus {
         }
     }
 
-    // Getter and Setter methods
     public String getStatus() {
         return status;
     }
