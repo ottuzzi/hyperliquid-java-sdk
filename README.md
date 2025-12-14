@@ -119,7 +119,6 @@ public class QuickStart {
         try {
             LOGGER.info("Placing a limit buy order for ETH...");
             // Create a limit buy order for 0.01 ETH at a price of $1500
-            // This order will be canceled if not filled immediately (IOC)
             OrderRequest orderRequest = OrderRequest.builder()
                     .perp("ETH") // Perpetual contract for ETH
                     .buy("0.01") // Buying 0.01 ETH

@@ -127,7 +127,6 @@ public class QuickStart {
         try {
             LOGGER.info("正在下一个 ETH 的限价买单..."); // **记录日志：开始下单**
             // 创建一个限价买单，以 $1500 的价格购买 0.01 ETH
-            // 此订单如果不能立即成交将会被自动取消 (IOC)
             OrderRequest orderRequest = OrderRequest.builder() // **使用 OrderRequest 构建器**
                     .perp("ETH") // **指定交易品种为 ETH 永续合约**
                     .buy("0.01") // **买入方向，数量为 0.01**
