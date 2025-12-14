@@ -249,24 +249,42 @@ public class Exchange {
     }
 
     /**
-     * Prepare order request:
-     * 1. Infer market close position quantity.
-     * 2. Infer limit close position direction.
-     * 3. Infer conditional order limit price
+     * Prepare order request before serialization and submission.
+     * <p>
+     * Centralizes pre-processing logic for the single {@link #order(OrderRequest)}
+     * flow, including:
+     * <ol>
+     * <li>Market-open placeholder handling: for non-reduce-only IOC orders,
+     * calculate a slippage-based limit price via
+     * {@link #applyMarketOpenSlippage(OrderRequest)}.</li>
+     * <li>Market close-position inference: for close-position "market
+     * placeholders" (reduce-only IOC without price), automatically infer
+     * closing direction and size via
+     * {@link #prepareMarketCloseRequest(OrderRequest)}.</li>
+     * <li>Limit close-position inference: for close-position "limit
+     * placeholders" (reduce-only GTC with price but without direction),
+     * infer closing direction via
+     * {@link #prepareLimitCloseRequest(OrderRequest)}.</li>
+     * <li>Trigger order normalization: for trigger orders without explicit
+     * limit price, fetch current mid price and use it as default via
+     * {@link #prepareTriggerOrderRequest(OrderRequest)}.</li>
+     * </ol>
+     * This method does not perform size/price precision formatting; those are
+     * handled separately by {@link #formatOrderSize(OrderRequest)} and
+     * {@link #formatOrderPrice(OrderRequest)} after this step.
+     * </p>
+     *
+     * @param req Original order request (must not be null)
+     * @return Prepared order request with inferred fields filled when needed
+     * @throws HypeError If the request is null or required account information
+     *                   (e.g. position or mid price) is missing
      */
     private OrderRequest prepareRequest(OrderRequest req) {
         if (req == null) {
             throw new HypeError("OrderRequest cannot be null");
         }
         // Infer market order price with slippage
-        if (req.getLimitPx() == null &&
-                req.getOrderType() != null &&
-                req.getOrderType().getLimit() != null &&
-                Boolean.FALSE.equals(req.getReduceOnly()) &&
-                req.getOrderType().getLimit().getTif() == Tif.IOC) {
-            String slip = req.getSlippage() != null ? req.getSlippage() : defaultSlippageByCoin.getOrDefault(req.getCoin(), defaultSlippage);
-            String slipPx = computeSlippagePrice(req.getCoin(), Boolean.TRUE.equals(req.getIsBuy()), slip);
-            req.setLimitPx(slipPx);
+        if (Boolean.FALSE.equals(req.getReduceOnly()) && applyMarketOpenSlippage(req)) {
             return req;
         }
         // Market close position inference
@@ -285,6 +303,34 @@ public class Exchange {
     }
 
     /**
+     * Apply market-open slippage placeholder price for IOC market orders.
+     * <p>
+     * This method is used by both the single order() flow and the bulkOrders
+     * flow to convert "market" semantics into an IOC limit order with a
+     * slippage-derived price.
+     * </p>
+     *
+     * @param req Order request
+     * @return true if slippage price was applied, false otherwise
+     */
+    private boolean applyMarketOpenSlippage(OrderRequest req) {
+        if (req == null) {
+            return false;
+        }
+        if (req.getLimitPx() == null &&
+                req.getOrderType() != null &&
+                req.getOrderType().getLimit() != null &&
+                req.getOrderType().getLimit().getTif() == Tif.IOC) {
+            String slip = req.getSlippage() != null ? req.getSlippage()
+                    : defaultSlippageByCoin.getOrDefault(req.getCoin(), defaultSlippage);
+            String slipPx = computeSlippagePrice(req.getCoin(), Boolean.TRUE.equals(req.getIsBuy()), slip);
+            req.setLimitPx(slipPx);
+            return true;
+        }
+        return false;
+    }
+
+    /**
      * Prepare market close position request by inferring position direction and
      * size.
      * <p>
@@ -292,6 +338,14 @@ public class Exchange {
      * 1. Query user's current position for the coin
      * 2. Determine closing direction (opposite to current position)
      * 3. Calculate closing size (absolute value of position size)
+     * </p>
+     * <p>
+     * Note: This automatic inference is applied in the single
+     * {@link #order(OrderRequest)}
+     * flow only. When using
+     * {@link #bulkOrders(java.util.List, java.util.Map, String)}
+     * or other batch submission APIs, callers are expected to fully specify
+     * direction and size in each close-position order.
      * </p>
      *
      * @param req Original order request
@@ -315,7 +369,8 @@ public class Exchange {
             req.setSz(sz);
         }
         if (req.getLimitPx() == null) {
-            String slip = req.getSlippage() != null ? req.getSlippage() : defaultSlippageByCoin.getOrDefault(req.getCoin(), defaultSlippage);
+            String slip = req.getSlippage() != null ? req.getSlippage()
+                    : defaultSlippageByCoin.getOrDefault(req.getCoin(), defaultSlippage);
             String slipPx = computeSlippagePrice(req.getCoin(), Boolean.TRUE.equals(req.getIsBuy()), slip);
             req.setLimitPx(slipPx);
         }
@@ -328,6 +383,12 @@ public class Exchange {
      * Automatically determines the closing direction based on current position:
      * - If holding a short position (negative size), set isBuy=true to close
      * - If holding a long position (positive size), set isBuy=false to close
+     * </p>
+     * <p>
+     * Note: This inference is only used in the single {@link #order(OrderRequest)}
+     * flow. Batch APIs such as
+     * {@link #bulkOrders(java.util.List, java.util.Map, String)}
+     * require callers to explicitly provide the closing direction.
      * </p>
      *
      * @param req Original order request
@@ -404,6 +465,11 @@ public class Exchange {
 
     /**
      * Determine if it's a "conditional order" request.
+     * <p>
+     * Currently only supports perpetual (PERP) trigger orders. If spot trigger
+     * orders are introduced in the future, this method should be updated to
+     * relax the instrument type constraint accordingly.
+     * </p>
      *
      * @param req Order request
      * @return Returns true if yes, false otherwise
@@ -1044,7 +1110,7 @@ public class Exchange {
      * @return JSON response
      */
     public JsonNode sendAsset(String destination, String sourceDex, String destinationDex, String token, String amount,
-                              String fromSubAccount) {
+            String fromSubAccount) {
         long nonce = Signing.getTimestampMs();
         Map<String, Object> action = new LinkedHashMap<>();
         action.put("type", "sendAsset");
@@ -1214,7 +1280,7 @@ public class Exchange {
      * SpotDeploy: Register Token (registerToken2)
      */
     public JsonNode spotDeployRegisterToken(String tokenName, int szDecimals, int weiDecimals, int maxGas,
-                                            String fullName) {
+            String fullName) {
         Map<String, Object> action = new LinkedHashMap<>();
         Map<String, Object> spec = new LinkedHashMap<>();
         spec.put("name", tokenName);
@@ -1385,7 +1451,7 @@ public class Exchange {
      * @return JSON response
      */
     public JsonNode spotDeployRegisterHyperliquidity(int spot, double startPx, double orderSz, int nOrders,
-                                                     Integer nSeededLevels) {
+            Integer nSeededLevels) {
         Map<String, Object> register = new LinkedHashMap<>();
         register.put("spot", spot);
         register.put("startPx", String.valueOf(startPx));
@@ -1679,17 +1745,10 @@ public class Exchange {
      * @param req Order request
      */
     private void marketOpenTransition(OrderRequest req) {
-        if (req == null)
+        if (req == null) {
             return;
-        if (req.getLimitPx() == null &&
-                req.getOrderType() != null &&
-                req.getOrderType().getLimit() != null &&
-                req.getOrderType().getLimit().getTif() == Tif.IOC) {
-            String slip = req.getSlippage() != null ? req.getSlippage()
-                    : defaultSlippageByCoin.getOrDefault(req.getCoin(), defaultSlippage);
-            String slipPx = computeSlippagePrice(req.getCoin(), Boolean.TRUE.equals(req.getIsBuy()), slip);
-            req.setLimitPx(slipPx);
         }
+        applyMarketOpenSlippage(req);
     }
 
     /**
@@ -1806,7 +1865,7 @@ public class Exchange {
      * @return Order response
      */
     public Order closePositionMarket(String coin, String sz, String slippage, Cloid cloid,
-                                     Map<String, Object> builder) {
+            Map<String, Object> builder) {
         double szi = inferSignedPosition(coin);
         if (szi == 0.0) {
             throw new HypeError("No position to close for coin " + coin);
@@ -2136,7 +2195,7 @@ public class Exchange {
      *                            stake)
      * @return JSON response containing transaction details and validator status
      * @see #cValidatorChangeProfile(String, String, String, boolean, Boolean,
-     * Integer, String)
+     *      Integer, String)
      * @see #cValidatorUnregister()
      */
     public JsonNode cValidatorRegister(
