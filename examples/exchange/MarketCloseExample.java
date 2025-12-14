@@ -1,19 +1,20 @@
 import io.github.hyperliquid.sdk.HyperliquidClient;
 import io.github.hyperliquid.sdk.apis.Exchange;
+import io.github.hyperliquid.sdk.model.order.Cloid;
 import io.github.hyperliquid.sdk.model.order.Order;
 import io.github.hyperliquid.sdk.model.order.OrderRequest;
 import io.github.hyperliquid.sdk.utils.HypeError;
 
 /**
- * Market Order Open Example: Demonstrates how to open a position with market orders
+ * Market Order Close Example: Demonstrates how to close a position with market orders
  * <p>
- * Market Order Features:
- * 1. Immediate execution (IOC - Immediate Or Cancel)
- * 2. Executes at the best available market price
- * 3. Suitable for quick position entry scenarios
+ * Market Close Features:
+ * 1. Fast execution at market price
+ * 2. Supports partial or full position closure
+ * 3. Can use Cloid for order tracking
  * </p>
  */
-public class ExampleMarketOpen {
+public class MarketCloseExample {
     public static void main(String[] args) {
         // Recommended: Use API Wallet for better security
         // API Wallet: Sub-wallet authorized by main wallet, with limited permissions, main private key not exposed
@@ -38,13 +39,14 @@ public class ExampleMarketOpen {
 
         Exchange ex = client.getExchange();
 
-        // Open long position at market: Buy 0.01 ETH
-        OrderRequest req = OrderRequest.Open.market("ETH", true, "0.01");
+        // Close position at market: Close 0.01 ETH (using auto-generated Cloid for order tracking)
+        OrderRequest req = OrderRequest.Close.market("ETH", "0.01", Cloid.auto());
         try {
             Order order = ex.order(req);
             System.out.println("Order status: " + order.getStatus());
         } catch (HypeError e) {
-            System.err.println("Failed to open position: " + e.getMessage());
+            System.err.println("Failed to close position: " + e.getMessage());
         }
     }
 }
+

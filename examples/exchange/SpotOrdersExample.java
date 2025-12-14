@@ -21,7 +21,7 @@ import io.github.hyperliquid.sdk.utils.JSONUtil;
  * contracts.
  * </p>
  */
-public class ExampleSpotOrders {
+public class SpotOrdersExample {
 
     /**
      * Entry point for spot trading examples.
@@ -94,7 +94,7 @@ public class ExampleSpotOrders {
 
         // Optional: demonstrate how to inspect raw JSON via bulkOrders
         // (in real scenarios you would likely submit multiple spot orders together)
-        System.out.println("\n=== ExampleSpotOrders execution completed ===");
+        System.out.println("\n=== SpotOrdersExample execution completed ===");
     }
 }
 

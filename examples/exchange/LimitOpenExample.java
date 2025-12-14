@@ -1,21 +1,20 @@
-import com.fasterxml.jackson.databind.JsonNode;
 import io.github.hyperliquid.sdk.HyperliquidClient;
 import io.github.hyperliquid.sdk.apis.Exchange;
-import io.github.hyperliquid.sdk.model.order.Cloid;
 import io.github.hyperliquid.sdk.model.order.Order;
+import io.github.hyperliquid.sdk.model.order.OrderRequest;
 import io.github.hyperliquid.sdk.model.order.Tif;
 import io.github.hyperliquid.sdk.utils.HypeError;
 
 /**
- * Close Position Examples: Demonstrates different ways to close positions
+ * Limit Order Open Example: Demonstrates how to open a position with limit orders
  * <p>
- * Examples include:
- * 1. Close entire position at market price for a single coin
- * 2. Close entire position at limit price for a single coin
- * 3. Close all positions with one click
+ * Limit Order Features:
+ * 1. Executes at specified price
+ * 2. Supports multiple TIF strategies (GTC, IOC, ALO)
+ * 3. Provides precise price control
  * </p>
  */
-public class ExampleCloseAll {
+public class LimitOpenExample {
     public static void main(String[] args) {
         // Recommended: Use API Wallet for better security
         // API Wallet: Sub-wallet authorized by main wallet, with limited permissions, main private key not exposed
@@ -40,28 +39,32 @@ public class ExampleCloseAll {
 
         Exchange ex = client.getExchange();
 
-        // Example 1: Close entire ETH position at market (auto-infer direction and size)
+        // Example 1: Open long position with limit order (GTC - Good Till Cancel)
+        OrderRequest gtcReq = OrderRequest.Open.limit(Tif.GTC, "ETH", true, "0.01", "1800.0");
         try {
-            Order mkt = ex.closePositionMarket("ETH");
-            System.out.println("Market close status: " + mkt.getStatus());
+            Order order = ex.order(gtcReq);
+            System.out.println("GTC limit order status: " + order.getStatus());
         } catch (HypeError e) {
-            System.err.println("Market close failed: " + e.getMessage());
+            System.err.println("GTC limit order failed: " + e.getMessage());
         }
 
-        // Example 2: Close entire ETH position at limit price
+        // Example 2: Open long position with limit order (IOC - Immediate Or Cancel)
+        OrderRequest iocReq = OrderRequest.Open.limit(Tif.IOC, "ETH", true, "0.01", "1800.0");
         try {
-            Order lmt = ex.closePositionLimit(Tif.GTC, "ETH", "4000.0", Cloid.auto());
-            System.out.println("Limit close status: " + lmt.getStatus());
+            Order order = ex.order(iocReq);
+            System.out.println("IOC limit order status: " + order.getStatus());
         } catch (HypeError e) {
-            System.err.println("Limit close failed: " + e.getMessage());
+            System.err.println("IOC limit order failed: " + e.getMessage());
         }
 
-        // Example 3: Close all positions with one click (batch close)
+        // Example 3: Open long position with limit order (ALO - Add Liquidity Only)
+        OrderRequest aloReq = OrderRequest.Open.limit(Tif.ALO, "ETH", true, "0.01", "1800.0");
         try {
-            JsonNode result = ex.closeAllPositions();
-            System.out.println("Close all positions result: " + result);
+            Order order = ex.order(aloReq);
+            System.out.println("ALO limit order status: " + order.getStatus());
         } catch (HypeError e) {
-            System.err.println("Close all positions failed: " + e.getMessage());
+            System.err.println("ALO limit order failed: " + e.getMessage());
         }
     }
 }
+

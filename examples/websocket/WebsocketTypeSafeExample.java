@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
  * 3. Enjoy compile-time type checking and better code readability
  * </p>
  */
-public class ExampleWebsocketTypeSafe {
+public class WebsocketTypeSafeExample {
 
     public static void main(String[] args) throws InterruptedException {
         // ==================== 1. Initialize Client ====================
@@ -134,3 +134,4 @@ public class ExampleWebsocketTypeSafe {
         System.out.println("WebSocket closed, program exiting.");
     }
 }
+

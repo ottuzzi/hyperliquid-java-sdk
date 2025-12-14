@@ -19,7 +19,7 @@ import java.util.concurrent.TimeUnit;
  * 5. Gracefully close WebSocket connection
  * </p>
  */
-public class ExampleWebsocketBTC {
+public class WebsocketBTCExample {
 
     public static void main(String[] args) throws InterruptedException {
         // ==================== 1. Initialize Client ====================
@@ -176,3 +176,4 @@ public class ExampleWebsocketBTC {
         System.out.println("WebSocket closed, program exiting.");
     }
 }
+

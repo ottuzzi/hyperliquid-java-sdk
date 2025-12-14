@@ -26,7 +26,7 @@ import java.util.List;
  * 5. Leverage adjustment
  * </p>
  */
-public class ExampleComprehensive {
+public class ComprehensiveExample {
 
     public static void main(String[] args) throws JsonProcessingException {
         // ==================== 1. Client Initialization ====================
@@ -167,6 +167,7 @@ public class ExampleComprehensive {
             System.err.println("Close all positions failed: " + e.getMessage());
         }
 
-        System.out.println("\n=== Example execution completed ===");
+        System.out.println("\n=== ComprehensiveExample execution completed ===");
     }
 }
+

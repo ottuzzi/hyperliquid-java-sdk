@@ -18,7 +18,7 @@ import io.github.hyperliquid.sdk.utils.HypeError;
  * take-profit / stop-loss rules around existing positions.
  * </p>
  */
-public class ExampleTriggerOpenAndClose {
+public class TriggerOpenAndCloseExample {
 
     /**
      * Entry point for trigger order examples.
@@ -92,7 +92,7 @@ public class ExampleTriggerOpenAndClose {
             System.err.println("Stop-loss close order failed: " + e.getMessage());
         }
 
-        System.out.println("\n=== ExampleTriggerOpenAndClose execution completed ===");
+        System.out.println("\n=== TriggerOpenAndCloseExample execution completed ===");
     }
 }
 

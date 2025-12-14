@@ -21,7 +21,7 @@ import io.github.hyperliquid.sdk.utils.HypeError;
  * {@link OrderRequest.Close}.
  * </p>
  */
-public class ExampleBuilderOrders {
+public class BuilderOrdersExample {
 
     /**
      * Entry point for the advanced builder examples.
@@ -105,6 +105,7 @@ public class ExampleBuilderOrders {
             System.err.println("Builder trigger close order failed: " + e.getMessage());
         }
 
-        System.out.println("\n=== ExampleBuilderOrders execution completed ===");
+        System.out.println("\n=== BuilderOrdersExample execution completed ===");
     }
 }
+

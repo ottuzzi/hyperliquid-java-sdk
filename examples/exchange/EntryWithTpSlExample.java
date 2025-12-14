@@ -23,7 +23,7 @@ import io.github.hyperliquid.sdk.utils.JSONUtil;
  * </ul>
  * </p>
  */
-public class ExampleEntryWithTpSl {
+public class EntryWithTpSlExample {
 
     /**
      * Entry point for entry-with-TP/SL group examples.
@@ -89,7 +89,7 @@ public class ExampleEntryWithTpSl {
             System.err.println("positionTpsl bulkOrders failed: " + e.getMessage());
         }
 
-        System.out.println("\n=== ExampleEntryWithTpSl execution completed ===");
+        System.out.println("\n=== EntryWithTpSlExample execution completed ===");
     }
 }
 

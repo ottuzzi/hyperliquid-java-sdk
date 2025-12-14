@@ -19,7 +19,7 @@ import java.util.List;
  * 3. Supports atomic operations (order groups)
  * </p>
  */
-public class ExampleBulkOrders {
+public class BulkOrdersExample {
     public static void main(String[] args) {
         // Recommended: Use API Wallet for better security
         // API Wallet: Sub-wallet authorized by main wallet, with limited permissions, main private key not exposed
@@ -73,3 +73,4 @@ public class ExampleBulkOrders {
         }
     }
 }
+

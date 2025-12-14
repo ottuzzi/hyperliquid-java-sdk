@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit;
  * 3. Demonstrates Hyperliquid's official multi-subscription capability
  * </p>
  */
-public class ExampleWebsocketMultiTrades {
+public class WebsocketMultiTradesExample {
 
     public static void main(String[] args) throws InterruptedException {
         // ==================== 1. Initialize Client ====================
@@ -41,7 +41,7 @@ public class ExampleWebsocketMultiTrades {
                     String size = trade.path("sz").asText();
                     String side = trade.path("side").asText();
                     long time = trade.path("time").asLong();
-                    
+
                     System.out.printf("[BTC Trade] %s %s - Price: %s, Size: %s, Time: %d%n",
                             coin, side.equals("A") ? "Sell" : "Buy", price, size, time);
                 }
@@ -62,7 +62,7 @@ public class ExampleWebsocketMultiTrades {
                     String size = trade.path("sz").asText();
                     String side = trade.path("side").asText();
                     long time = trade.path("time").asLong();
-                    
+
                     System.out.printf("[ETH Trade] %s %s - Price: %s, Size: %s, Time: %d%n",
                             coin, side.equals("A") ? "Sell" : "Buy", price, size, time);
                 }
@@ -91,3 +91,4 @@ public class ExampleWebsocketMultiTrades {
         System.out.println("WebSocket closed, program exiting.");
     }
 }
+

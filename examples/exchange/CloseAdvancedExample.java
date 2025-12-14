@@ -16,11 +16,11 @@ import io.github.hyperliquid.sdk.utils.HypeError;
  *     <li>Market close orders with explicit direction</li>
  *     <li>Limit close orders with custom TIF strategies and Cloid</li>
  * </ul>
- * It complements {@link io.github.hyperliquid.sdk.examples.ExampleCloseAll}
+ * It complements {@link io.github.hyperliquid.sdk.examples.CloseAllExample}
  * by showing how to construct close orders directly via {@link OrderRequest}.
  * </p>
  */
-public class ExampleCloseAdvanced {
+public class CloseAdvancedExample {
 
     /**
      * Entry point for advanced close order examples.
@@ -90,7 +90,7 @@ public class ExampleCloseAdvanced {
             System.err.println("Limit close failed: " + e.getMessage());
         }
 
-        System.out.println("\n=== ExampleCloseAdvanced execution completed ===");
+        System.out.println("\n=== CloseAdvancedExample execution completed ===");
     }
 }
 
