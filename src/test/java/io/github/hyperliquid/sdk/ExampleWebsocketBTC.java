@@ -27,12 +27,14 @@ import java.util.Map;
 public class ExampleWebsocketBTC {
 
     public static void main(String[] args) {
-        // Note: WebSocket subscription does not require private key, only subscribes to public market data
+        // Note: WebSocket subscription does not require private key, only subscribes to
+        // public market data
         HyperliquidClient client = HyperliquidClient.builder()
-                //.testNetUrl()  // 使用测试网
+                // .testNetUrl() // Use testnet
                 .build();
         Info info = client.getInfo();
-        // ==================== 4. Subscribe to BTC real-time trades ====================
+        // ==================== 4. Subscribe to BTC real-time trades
+        // ====================
         // Subscribe to BTC individual trades====================
         TradesSubscription btcTrades = TradesSubscription.of("BTC");
         info.subscribe(btcTrades, msg -> System.out.println("BTC 成交: " + msg));
@@ -45,8 +47,8 @@ public class ExampleWebsocketBTC {
     @Test
     public void candleSnapshotByCount() throws JsonProcessingException {
         HyperliquidClient client = HyperliquidClient.builder()
-                //.testNetUrl()
-                //.addPrivateKey(TESTNET_PRIVATE_KEY)
+                // .testNetUrl()
+                // .addPrivateKey(TESTNET_PRIVATE_KEY)
                 .build();
         Info info = client.getInfo();
         List<Candle> candles = info.candleSnapshotByCount("BTC", CandleInterval.MINUTE_15, 1000);
@@ -57,32 +59,35 @@ public class ExampleWebsocketBTC {
     public void orderUpdates() throws JsonProcessingException {
         HyperliquidClient client = HyperliquidClient.builder()
                 .testNetUrl()
-                //.addPrivateKey(TESTNET_PRIVATE_KEY)
+                // .addPrivateKey(TESTNET_PRIVATE_KEY)
                 .build();
-        //JsonNode sub = JSONUtil.convertValue(java.util.Map.of("type", "orderUpdates", "user", "0x...."), JsonNode.class);
         OrderUpdatesSubscription orderUpdatesSubscription = OrderUpdatesSubscription.of("0x....");
         client.getInfo().subscribe(orderUpdatesSubscription, System.out::println);
 
-        /*  获取所有订阅
-        *
-        * 订阅: orderUpdates
-          订阅内容: {"user":"0x....","type":"orderUpdates"}
-        * */
-        Map<String, List<WebsocketManager.ActiveSubscription>> subscriptions = client.getInfo().getWsManager().getSubscriptions();
+        /*
+         * Retrieve all active subscriptions
+         *
+         * Subscription identifier: orderUpdates
+         * Subscription payload example: {"user":"0x....","type":"orderUpdates"}
+         */
+        Map<String, List<WebsocketManager.ActiveSubscription>> subscriptions = client.getInfo().getWsManager()
+                .getSubscriptions();
         subscriptions.forEach((k, v) -> {
-            System.out.println("订阅: " + k);
+            System.out.println("Subscription identifier: " + k);
             for (WebsocketManager.ActiveSubscription activeSubscription : v) {
-                System.out.println("订阅内容: " + activeSubscription.getSubscription());
+                System.out.println("Subscription payload: " + activeSubscription.getSubscription());
             }
         });
 
-        //方式二 订阅内容: {"type":"orderUpdates","user":"0x...."}
-        List<WebsocketManager.ActiveSubscription> orderUpdates = client.getInfo().getWsManager().getSubscriptionsByIdentifier("orderUpdates");
+        // Alternative lookup: identifier "orderUpdates" with payloads like
+        // {"type":"orderUpdates","user":"0x...."}
+        List<WebsocketManager.ActiveSubscription> orderUpdates = client.getInfo().getWsManager()
+                .getSubscriptionsByIdentifier("orderUpdates");
         orderUpdates.forEach(activeSubscription -> {
-            System.out.println("订阅内容: " + activeSubscription.getSubscription());
+            System.out.println("Subscription payload: " + activeSubscription.getSubscription());
         });
 
-        //等待
+        // Wait for messages to arrive on the WebSocket stream
         try {
             Thread.sleep(6000000);
         } catch (InterruptedException e) {

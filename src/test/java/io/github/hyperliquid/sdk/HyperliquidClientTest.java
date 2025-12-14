@@ -20,7 +20,8 @@ import static org.junit.jupiter.api.Assertions.*;
 /**
  * HyperliquidClient test class
  * Uses JUnit 5 to comprehensively test all methods under client.getInfo().
- * Includes: successful call validation, return structure assertions, error handling, and log output verification.
+ * Includes: successful call validation, return structure assertions, error
+ * handling, and log output verification.
  */
 public class HyperliquidClientTest {
 
@@ -50,7 +51,8 @@ public class HyperliquidClientTest {
     private PrintStream originalErr;
 
     /**
-     * 测试初始化：构建测试网客户端、启用调试日志、捕获日志输出。
+     * Test initialization: build testnet client, enable debug logging, and capture
+     * log output.
      */
     @BeforeEach
     void setUp() {
@@ -59,7 +61,7 @@ public class HyperliquidClientTest {
         System.setErr(new PrintStream(errContent));
 
         client = HyperliquidClient.builder()
-                //.testNetUrl()
+                // .testNetUrl()
                 .addPrivateKey(TESTNET_PRIVATE_KEY)
                 .build();
 
@@ -68,7 +70,7 @@ public class HyperliquidClientTest {
     }
 
     /**
-     * 测试清理：关闭 WS、恢复日志输出、释放客户端。
+     * Test cleanup: close WebSocket, restore log output, and release client.
      */
     @AfterEach
     void tearDown() {
@@ -81,14 +83,15 @@ public class HyperliquidClientTest {
     }
 
     /**
-     * 工具方法：重置日志缓冲。
+     * Utility method: reset the log buffer.
      */
     private void resetLogs() {
         errContent.reset();
     }
 
     /**
-     * 工具方法：校验日志已包含基本的 POST/Request/Response 关键字。
+     * Utility method: verify that logs contain basic POST/Request/Response
+     * keywords.
      */
     private void assertHttpLogsPresent() {
         String logs = errContent.toString();
@@ -98,7 +101,8 @@ public class HyperliquidClientTest {
     }
 
     /**
-     * Verify account information retrieval functionality: clearinghouse state and user state.
+     * Verify account information retrieval functionality: clearinghouse state and
+     * user state.
      */
     @Test
     @DisplayName("Account info: clearinghouseState/userState return structure and logs")
@@ -118,7 +122,8 @@ public class HyperliquidClientTest {
     }
 
     /**
-     * Verify market data retrieval functionality: meta, allMids, l2Book, candleSnapshotLatest.
+     * Verify market data retrieval functionality: meta, allMids, l2Book,
+     * candleSnapshotLatest.
      */
     @Test
     @DisplayName("Market data: meta/allMids/l2Book/candleSnapshotLatest")
@@ -145,7 +150,7 @@ public class HyperliquidClientTest {
 
         resetLogs();
         Candle latest = info.candleSnapshotLatest("BTC", CandleInterval.MINUTE_1);
-        // 最新 K 线可能为 null（无数据时）
+        // Latest candle may be null when there is no data
         if (latest != null) {
             assertNotNull(latest.getStartTimestamp());
             assertNotNull(latest.getClosePrice());
@@ -173,7 +178,8 @@ public class HyperliquidClientTest {
     }
 
     /**
-     * Verify position information query functionality: ClearinghouseState.assetPositions field.
+     * Verify position information query functionality:
+     * ClearinghouseState.assetPositions field.
      */
     @Test
     @DisplayName("Position info: ClearinghouseState.assetPositions field validation")
@@ -206,7 +212,7 @@ public class HyperliquidClientTest {
         resetLogs();
         Meta cached = info.loadMetaCache();
         assertNotNull(cached);
-        // loadMetaCache 不触发请求，不强制要求日志包含 POST
+        // loadMetaCache does not trigger a request, so POST logs are not required
     }
 
     /**
@@ -246,6 +252,28 @@ public class HyperliquidClientTest {
         JsonNode node = info.spotMetaAndAssetCtxs();
         assertNotNull(node);
         assertHttpLogsPresent();
+    }
+
+    /**
+     * Spot metadata cache operations: load, refresh, and clear.
+     */
+    @Test
+    @DisplayName("Spot metadata cache: load/refresh/clear")
+    void testSpotMetaCacheOperations() {
+        Info info = client.getInfo();
+
+        resetLogs();
+        SpotMeta cached = info.loadSpotMetaCache();
+        assertNotNull(cached);
+        assertHttpLogsPresent();
+
+        resetLogs();
+        SpotMeta refreshed = info.refreshSpotMetaCache();
+        assertNotNull(refreshed);
+        assertHttpLogsPresent();
+
+        info.clearSpotMetaCache();
+        assertDoesNotThrow(info::getSpotMetaCacheStats);
     }
 
     /**
@@ -426,7 +454,7 @@ public class HyperliquidClientTest {
         assertNotNull(a2);
         assertHttpLogsPresent();
 
-        // 资产 ID 变体
+        // Asset ID variant
         resetLogs();
         int btcId = info.nameToAsset("BTC");
         JsonNode a3 = info.userFundingHistory(address, btcId, start, end);
@@ -656,5 +684,5 @@ public class HyperliquidClientTest {
         assertNotNull(e2);
         assertHttpLogsPresent();
     }
- 
+
 }
