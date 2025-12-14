@@ -211,18 +211,18 @@ meta.getUniverse().stream()
 OrderRequest slOrder = OrderRequest.builder()
         .perp("ETH")
         .sell("0.01") // 平多仓的方向
-        .triggerPrice("2900", false) // 当价格跌破 2900 时触发
-        .market() // 触发后作为市价单执行
-        .reduceOnly(true) // 确保它只减少仓位
+        .stopBelow("2900") // 当价格跌破 2900 时触发
+        .marketTrigger() // 触发后作为市价单执行
+        .reduceOnly() // 确保它只减少仓位
         .build();
 
 // 止盈限价单
 OrderRequest tpOrder = OrderRequest.builder()
         .perp("ETH")
         .sell("0.01")
-        .triggerPrice("3100", true) // 当价格上涨超过 3100 时触发
+        .stopAbove("3100") // 当价格上涨超过 3100 时触发
         .limitPrice("3100") // 作为限价单执行
-        .reduceOnly(true)
+        .reduceOnly()
         .build();
 ```
 

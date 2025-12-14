@@ -39,13 +39,31 @@ public class ExampleLimitOpen {
 
         Exchange ex = client.getExchange();
 
-        // Open long position with limit order: Buy 0.01 ETH at 1800.0 (GTC - Good Till Cancel)
-        OrderRequest req = OrderRequest.Open.limit(Tif.GTC, "ETH", true, "0.01", "1800.0");
+        // Example 1: Open long position with limit order (GTC - Good Till Cancel)
+        OrderRequest gtcReq = OrderRequest.Open.limit(Tif.GTC, "ETH", true, "0.01", "1800.0");
         try {
-            Order order = ex.order(req);
-            System.out.println("Order status: " + order.getStatus());
+            Order order = ex.order(gtcReq);
+            System.out.println("GTC limit order status: " + order.getStatus());
         } catch (HypeError e) {
-            System.err.println("Failed to open position: " + e.getMessage());
+            System.err.println("GTC limit order failed: " + e.getMessage());
+        }
+
+        // Example 2: Open long position with limit order (IOC - Immediate Or Cancel)
+        OrderRequest iocReq = OrderRequest.Open.limit(Tif.IOC, "ETH", true, "0.01", "1800.0");
+        try {
+            Order order = ex.order(iocReq);
+            System.out.println("IOC limit order status: " + order.getStatus());
+        } catch (HypeError e) {
+            System.err.println("IOC limit order failed: " + e.getMessage());
+        }
+
+        // Example 3: Open long position with limit order (ALO - Add Liquidity Only)
+        OrderRequest aloReq = OrderRequest.Open.limit(Tif.ALO, "ETH", true, "0.01", "1800.0");
+        try {
+            Order order = ex.order(aloReq);
+            System.out.println("ALO limit order status: " + order.getStatus());
+        } catch (HypeError e) {
+            System.err.println("ALO limit order failed: " + e.getMessage());
         }
     }
 }

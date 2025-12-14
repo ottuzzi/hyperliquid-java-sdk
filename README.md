@@ -203,18 +203,18 @@ The builder provides a type-safe way to construct complex orders.
 OrderRequest slOrder = OrderRequest.builder()
         .perp("ETH")
         .sell("0.01") // Direction to close a long position
-        .triggerPrice("2900", false) // Trigger when price drops below 2900
-        .market() // Execute as a market order when triggered
-        .reduceOnly(true) // Ensures it only reduces a position
+        .stopBelow("2900") // Trigger when price drops below 2900
+        .marketTrigger() // Execute as a market order when triggered
+        .reduceOnly() // Ensures it only reduces a position
         .build();
 
 // Take-Profit Limit Order
 OrderRequest tpOrder = OrderRequest.builder()
         .perp("ETH")
         .sell("0.01")
-        .triggerPrice("3100", true) // Trigger when price rises above 3100
+        .stopAbove("3100") // Trigger when price rises above 3100
         .limitPrice("3100") // Execute as a limit order
-        .reduceOnly(true)
+        .reduceOnly()
         .build();
 ```
 
