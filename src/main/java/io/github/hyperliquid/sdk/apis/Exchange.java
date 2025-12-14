@@ -704,6 +704,7 @@ public class Exchange {
      * @return Response JSON
      */
     public JsonNode bulkOrders(List<OrderRequest> requests) {
+        requests.forEach(this::prepareMarketCloseRequest);
         return bulkOrders(requests, null, null);
     }
 
