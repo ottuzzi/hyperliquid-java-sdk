@@ -1,5 +1,7 @@
 package io.github.hyperliquid.sdk.model.info;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /** Frontend open order entity wrapper (carrying trigger/take-profit/stop-loss and other additional information) */
 public class FrontendOpenOrder {
     /** Currency (e.g., "BTC" or Spot index "@107") */
@@ -38,6 +40,7 @@ public class FrontendOpenOrder {
         this.coin = coin;
     }
 
+    @JsonProperty("isPositionTpsl")
     public Boolean getIsPositionTpsl() {
         return isPositionTpsl;
     }
@@ -46,6 +49,7 @@ public class FrontendOpenOrder {
         this.isPositionTpsl = isPositionTpsl;
     }
 
+    @JsonProperty("isTrigger")
     public Boolean getIsTrigger() {
         return isTrigger;
     }

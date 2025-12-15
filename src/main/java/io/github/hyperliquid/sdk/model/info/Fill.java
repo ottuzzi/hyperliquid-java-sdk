@@ -3,6 +3,7 @@ package io.github.hyperliquid.sdk.model.info;
 import com.fasterxml.jackson.annotation.JsonAnyGetter;
 import com.fasterxml.jackson.annotation.JsonAnySetter;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.annotation.JsonSetter;
 
 import java.util.HashMap;
@@ -74,6 +75,7 @@ public class Fill {
         this.coinName = coinName;
     }
 
+    @JsonProperty("isBuy")
     public Boolean getIsBuy() {
         return isBuy;
     }

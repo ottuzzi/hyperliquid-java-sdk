@@ -36,6 +36,7 @@ public class SpotMeta {
         /** Asset index (integer) */
         private int index;
         /** Whether it is a canonical main asset */
+        @JsonProperty("isCanonical")
         private boolean isCanonical;
 
         // Getter and Setter methods
@@ -63,10 +64,12 @@ public class SpotMeta {
             this.index = index;
         }
 
+        @JsonProperty("isCanonical")
         public boolean isCanonical() {
             return isCanonical;
         }
 
+        @JsonProperty("isCanonical")
         public void setCanonical(boolean canonical) {
             isCanonical = canonical;
         }
@@ -133,10 +136,12 @@ public class SpotMeta {
             this.tokenId = tokenId;
         }
 
+        @JsonProperty("isCanonical")
         public Boolean getCanonical() {
             return isCanonical;
         }
 
+        @JsonProperty("isCanonical")
         public void setCanonical(Boolean canonical) {
             isCanonical = canonical;
         }

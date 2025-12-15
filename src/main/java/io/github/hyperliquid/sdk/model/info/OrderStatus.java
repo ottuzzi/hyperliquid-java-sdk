@@ -1,5 +1,7 @@
 package io.github.hyperliquid.sdk.model.info;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 import java.util.List;
 
 /**
@@ -149,6 +151,7 @@ public class OrderStatus {
                 this.triggerCondition = triggerCondition;
             }
 
+            @JsonProperty("isTrigger")
             public Boolean getTrigger() {
                 return isTrigger;
             }
@@ -173,6 +176,7 @@ public class OrderStatus {
                 this.children = children;
             }
 
+            @JsonProperty("isPositionTpsl")
             public Boolean getPositionTpsl() {
                 return isPositionTpsl;
             }
