@@ -353,7 +353,7 @@ public class Exchange {
      * @throws HypeError If no position exists for the specified coin
      */
     private OrderRequest prepareMarketCloseRequest(OrderRequest req) {
-        if (req.getIsBuy() != null && req.getSz() != null) {
+        if (req.getIsBuy() != null && req.getSz() != null && req.getLimitPx() != null) {
             return req;
         }
         double szi = inferSignedPosition(req.getCoin());
@@ -1945,6 +1945,9 @@ public class Exchange {
 
             // Build market close request
             OrderRequest req = OrderRequest.Close.market(pos.getCoin(), isBuy, String.valueOf(closeSz), null);
+            String slip = req.getSlippage() != null ? req.getSlippage() : defaultSlippageByCoin.getOrDefault(req.getCoin(), defaultSlippage);
+            String slipPx = computeSlippagePrice(req.getCoin(), Boolean.TRUE.equals(req.getIsBuy()), slip);
+            req.setLimitPx(slipPx);
             closeOrders.add(req);
         }
 

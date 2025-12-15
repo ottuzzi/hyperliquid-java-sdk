@@ -501,10 +501,45 @@ public class OrderRequest {
         // ========================================
 
         /**
-         * Creates a breakout entry order (triggers when price breaks above, executes at
-         * market, without cloid).
-         * Use case: Long breakout strategy, chasing upward momentum when price breaks
-         * key resistance.
+         * Creates a generic breakout entry trigger order for perpetual contracts.
+         * <p>
+         * This is the low-level factory used by
+         * {@link #breakoutAbove(String, String, String)} and
+         * {@link #breakoutBelow(String, String, String)}. It builds a trigger order
+         * that opens a new position when the trigger price is crossed and executes at
+         * market price after the trigger fires.
+         * </p>
+         *
+         * @param coin      Perpetual symbol (e.g. "ETH")
+         * @param isBuy     Direction of the entry (true=buy/long, false=sell/short)
+         * @param sz        Order size (string)
+         * @param triggerPx Trigger price (string)
+         * @param cloid     Client order ID (can be null)
+         * @return OrderRequest instance representing a breakout entry trigger order
+         */
+        public static OrderRequest breakout(String coin, Boolean isBuy, String sz, String triggerPx, Cloid cloid) {
+            OrderRequest req = new OrderRequest();
+            req.setInstrumentType(InstrumentType.PERP);
+            req.setCoin(coin);
+            req.setIsBuy(isBuy);
+            req.setSz(sz);
+            req.setLimitPx(triggerPx);
+            req.setReduceOnly(false);
+            req.setCloid(cloid);
+            TriggerOrderType triggerOrderType = new TriggerOrderType(triggerPx, true, TpslType.SL);
+            OrderType orderType = new OrderType(triggerOrderType);
+            req.setOrderType(orderType);
+            return req;
+        }
+
+        /**
+         * Creates a long breakout entry order that opens a new long position when
+         * price breaks above the given level and executes at market price (no
+         * cloid).
+         * <p>
+         * Typical use case: breakout-long strategies that chase upward momentum when
+         * price breaks key resistance.
+         * </p>
          *
          * @param coin      Currency name
          * @param sz        Quantity (string)
@@ -512,55 +547,17 @@ public class OrderRequest {
          * @return OrderRequest instance
          */
         public static OrderRequest breakoutAbove(String coin, String sz, String triggerPx) {
-            return breakoutAbove(coin, true, sz, triggerPx, null);
+            return breakout(coin, true, sz, triggerPx, null);
         }
 
         /**
-         * Creates a breakout entry order (triggers when price breaks above, executes at
-         * market).
-         *
-         * @param coin      Currency name
-         * @param isBuy     Whether to buy
-         * @param sz        Quantity (string)
-         * @param triggerPx Trigger price (string)
-         * @return OrderRequest instance
-         */
-        public static OrderRequest breakoutAbove(String coin, Boolean isBuy, String sz, String triggerPx) {
-            return breakoutAbove(coin, isBuy, sz, triggerPx, null);
-        }
-
-        /**
-         * Creates a breakout entry order (triggers when price breaks above, executes at
-         * market).
-         * Use case: Long breakout strategy, chasing upward momentum when price breaks
-         * key resistance.
-         *
-         * @param coin      Currency name
-         * @param sz        Quantity (string)
-         * @param triggerPx Trigger price (string)
-         * @param cloid     Client order ID (can be null)
-         * @return OrderRequest instance
-         */
-        public static OrderRequest breakoutAbove(String coin, Boolean isBuy, String sz, String triggerPx, Cloid cloid) {
-            OrderRequest req = new OrderRequest();
-            req.setInstrumentType(InstrumentType.PERP);
-            req.setCoin(coin);
-            req.setIsBuy(isBuy);
-            req.setSz(sz);
-            req.setLimitPx(null);
-            req.setReduceOnly(false);
-            req.setCloid(cloid);
-            TriggerOrderType triggerOrderType = new TriggerOrderType(triggerPx, true, TpslType.TP);
-            OrderType orderType = new OrderType(triggerOrderType);
-            req.setOrderType(orderType);
-            return req;
-        }
-
-        /**
-         * Creates a breakout entry order (triggers when price breaks below, executes at
-         * market, without cloid).
-         * Use case: Short breakout strategy, chasing downward momentum when price
-         * breaks key support.
+         * Creates a short breakout entry order that opens a new short position when
+         * price breaks below the given level and executes at market price (no
+         * cloid).
+         * <p>
+         * Typical use case: breakout-short strategies that chase downward momentum
+         * when price breaks key support.
+         * </p>
          *
          * @param coin      Currency name
          * @param sz        Quantity (string)
@@ -568,49 +565,7 @@ public class OrderRequest {
          * @return OrderRequest instance
          */
         public static OrderRequest breakoutBelow(String coin, String sz, String triggerPx) {
-            return breakoutBelow(coin, false, sz, triggerPx, null);
-        }
-
-        /**
-         * Creates a breakout entry order (triggers when price breaks below, executes at
-         * market).
-         *
-         * @param coin      Currency name
-         * @param isBuy     Whether to buy
-         * @param sz        Quantity (string)
-         * @param triggerPx Trigger price (string)
-         * @return OrderRequest instance
-         */
-        public static OrderRequest breakoutBelow(String coin, Boolean isBuy, String sz, String triggerPx) {
-            return breakoutBelow(coin, isBuy, sz, triggerPx, null);
-        }
-
-        /**
-         * Creates a breakout entry order (triggers when price breaks below, executes at
-         * market).
-         * <p>
-         * Use case: Short breakout strategy, chasing downward momentum when price
-         * breaks key support.
-         *
-         * @param coin      Currency name
-         * @param sz        Quantity (string)
-         * @param triggerPx Trigger price (string)
-         * @param cloid     Client order ID (can be null)
-         * @return OrderRequest instance
-         */
-        public static OrderRequest breakoutBelow(String coin, Boolean isBuy, String sz, String triggerPx, Cloid cloid) {
-            OrderRequest req = new OrderRequest();
-            req.setInstrumentType(InstrumentType.PERP);
-            req.setCoin(coin);
-            req.setIsBuy(isBuy);
-            req.setSz(sz);
-            req.setLimitPx(null);
-            req.setReduceOnly(false);
-            req.setCloid(cloid);
-            TriggerOrderType triggerOrderType = new TriggerOrderType(triggerPx, true, TpslType.SL);
-            OrderType orderType = new OrderType(triggerOrderType);
-            req.setOrderType(orderType);
-            return req;
+            return breakout(coin, false, sz, triggerPx, null);
         }
 
         // ========================================
@@ -1051,7 +1006,7 @@ public class OrderRequest {
             req.setCoin(coin);
             req.setIsBuy(isBuy);
             req.setSz(sz);
-            req.setLimitPx(null);
+            req.setLimitPx(triggerPx);
             req.setReduceOnly(true);
             req.setCloid(cloid);
             TriggerOrderType triggerOrderType = new TriggerOrderType(triggerPx, true, TpslType.TP);

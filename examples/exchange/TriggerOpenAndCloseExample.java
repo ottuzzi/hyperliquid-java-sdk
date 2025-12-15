@@ -63,7 +63,7 @@ public class TriggerOpenAndCloseExample {
         System.out.println("\n--- Trigger: breakoutBelow short entry ---");
         try {
             // Enter short when price breaks below 3200.0
-            OrderRequest breakoutShort = OrderRequest.Open.breakoutBelow("ETH", false, "0.01", "3200.0");
+            OrderRequest breakoutShort = OrderRequest.Open.breakoutBelow("ETH", "0.01", "3200.0");
             Order order = exchange.order(breakoutShort);
             System.out.println("Breakout short order status: " + order.getStatus());
         } catch (HypeError e) {
@@ -74,7 +74,7 @@ public class TriggerOpenAndCloseExample {
         System.out.println("\n--- Trigger: take-profit close order ---");
         try {
             // Close part of a long position when price breaks above 3600.0
-            OrderRequest takeProfit = OrderRequest.Close.takeProfit("ETH", true, "0.01", "3600.0");
+            OrderRequest takeProfit = OrderRequest.Close.takeProfitForLong("ETH", "0.01", "3600.0");
             Order order = exchange.order(takeProfit);
             System.out.println("Take-profit close order status: " + order.getStatus());
         } catch (HypeError e) {
@@ -85,7 +85,7 @@ public class TriggerOpenAndCloseExample {
         System.out.println("\n--- Trigger: stop-loss close order ---");
         try {
             // Close part of a long position when price breaks below 3400.0
-            OrderRequest stopLoss = OrderRequest.Close.stopLoss("ETH", true, "0.01", "3400.0");
+            OrderRequest stopLoss = OrderRequest.Close.stopLossForLong("ETH", "0.01", "3400.0");
             Order order = exchange.order(stopLoss);
             System.out.println("Stop-loss close order status: " + order.getStatus());
         } catch (HypeError e) {
@@ -95,4 +95,3 @@ public class TriggerOpenAndCloseExample {
         System.out.println("\n=== TriggerOpenAndCloseExample execution completed ===");
     }
 }
-
