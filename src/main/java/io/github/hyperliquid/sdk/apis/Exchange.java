@@ -284,7 +284,7 @@ public class Exchange {
             throw new HypeError("OrderRequest cannot be null");
         }
         // Infer market order price with slippage
-        if (Boolean.FALSE.equals(req.getReduceOnly()) && applyMarketOpenSlippage(req)) {
+        if (applyMarketOpenSlippage(req)) {
             return req;
         }
         // Market close position inference
@@ -320,9 +320,9 @@ public class Exchange {
         if (req.getLimitPx() == null &&
                 req.getOrderType() != null &&
                 req.getOrderType().getLimit() != null &&
-                req.getOrderType().getLimit().getTif() == Tif.IOC) {
-            String slip = req.getSlippage() != null ? req.getSlippage()
-                    : defaultSlippageByCoin.getOrDefault(req.getCoin(), defaultSlippage);
+                req.getOrderType().getLimit().getTif() == Tif.IOC &&
+                Boolean.FALSE.equals(req.getReduceOnly())) {
+            String slip = req.getSlippage() != null ? req.getSlippage() : defaultSlippageByCoin.getOrDefault(req.getCoin(), defaultSlippage);
             String slipPx = computeSlippagePrice(req.getCoin(), Boolean.TRUE.equals(req.getIsBuy()), slip);
             req.setLimitPx(slipPx);
             return true;
@@ -608,10 +608,10 @@ public class Exchange {
      * @return Response JSON
      */
     public JsonNode bulkOrders(List<OrderRequest> requests, Map<String, Object> builder, String grouping) {
+        // Prepare requests
+        requests.forEach(this::prepareRequest);
         // Format order quantity precision
         requests.forEach(this::formatOrderSize);
-        // Process market orders
-        requests.forEach(this::marketOpenTransition);
         // Format order price precision
         requests.forEach(this::formatOrderPrice);
         List<OrderWire> wires = new ArrayList<>();
@@ -704,7 +704,6 @@ public class Exchange {
      * @return Response JSON
      */
     public JsonNode bulkOrders(List<OrderRequest> requests) {
-        requests.forEach(this::prepareMarketCloseRequest);
         return bulkOrders(requests, null, null);
     }
 
@@ -1740,23 +1739,10 @@ public class Exchange {
     }
 
     /**
-     * Market open placeholder conversion: Calculate placeholder limit price for IOC
-     * market orders.
-     *
-     * @param req Order request
-     */
-    private void marketOpenTransition(OrderRequest req) {
-        if (req == null) {
-            return;
-        }
-        applyMarketOpenSlippage(req);
-    }
-
-    /**
      * Calculate price with slippage (string version)
      */
     public String computeSlippagePrice(String coin, boolean isBuy, String slippage) {
-        Map<String, String> mids = info.allMids();
+        Map<String, String> mids = info.getCachedAllMids();
         String midStr = mids.get(coin);
         if (midStr == null) {
             throw new HypeError("Failed to get mid price for coin " + coin

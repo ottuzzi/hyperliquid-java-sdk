@@ -67,6 +67,11 @@ public class Info {
     private final Cache<String, SpotMeta> spotMetaCache;
 
     /**
+     * AllMids cache for storing all market IDs.
+     **/
+    private final Cache<String, Map<String, String>> allMidsCache;
+
+    /**
      * Coin name to asset ID mapping cache
      * Key: Coin name (uppercase), Value: Asset ID
      */
@@ -121,6 +126,8 @@ public class Info {
             spotMetaCacheBuilder.recordStats();
         }
         this.spotMetaCache = spotMetaCacheBuilder.build();
+
+        this.allMidsCache = Caffeine.newBuilder().expireAfterWrite(1, TimeUnit.SECONDS).build();
     }
 
     /**
@@ -194,6 +201,15 @@ public class Info {
      */
     public Map<String, String> allMids() {
         return allMids(null);
+    }
+
+    public Map<String, String> getCachedAllMids(String dex) {
+        String cacheKey = buildAllMidsCacheKey(dex);
+        return allMidsCache.get(cacheKey, key -> allMids(dex));
+    }
+
+    public Map<String, String> getCachedAllMids() {
+        return getCachedAllMids(null);
     }
 
     /**
@@ -280,12 +296,6 @@ public class Info {
     }
 
     /**
-     * Build meta cache key.
-     *
-     * @param dex Perp dex name
-     * @return Cache key string
-     */
-    /**
      * Build meta cache key based on DEX name.
      * <p>
      * This helper method generates cache keys for meta data storage.
@@ -297,6 +307,10 @@ public class Info {
      */
     private String buildMetaCacheKey(String dex) {
         return (dex == null || dex.isEmpty()) ? "meta:default" : "meta:" + dex;
+    }
+
+    private String buildAllMidsCacheKey(String dex) {
+        return (dex == null || dex.isEmpty()) ? "allMids:default" : "allMids:" + dex;
     }
 
     /**
